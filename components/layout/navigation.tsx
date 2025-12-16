@@ -61,7 +61,7 @@ export function Navigation({ user }: NavigationProps) {
 
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="bg-primary/10 border-primary text-primary font-bold px-3 py-1">
-              {user.credits.toLocaleString()} Credits
+              {typeof user.credits === "number" ? user.credits.toLocaleString() : "—"} Credits
             </Badge>
 
             <DropdownMenu>
@@ -77,7 +77,7 @@ export function Navigation({ user }: NavigationProps) {
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
                     <span className="font-semibold">{user.username}</span>
-                    <span className="text-xs text-muted-foreground">{user.credits} credits</span>
+                    <span className="text-xs text-muted-foreground">{typeof user.credits === "number" ? user.credits : "—"} credits</span>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

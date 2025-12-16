@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getDatabase } from "@/lib/db"
 import { ObjectId } from "mongodb"
+import { getCardByCode } from "@/lib/cards-db"
 
 interface CardData {
   code: number
@@ -17,7 +18,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { packId } = await request.json()
+    let { packId, quantity } = await request.json()
+    quantity = Math.max(1, Math.min(Number(quantity) || 1, 100))
 
     const db = await getDatabase()
     const usersCollection = db.collection("users")
@@ -25,57 +27,59 @@ export async function POST(request: NextRequest) {
     const collectionCollection = db.collection("collection")
 
     // Get user and pack
-    const userDoc = await usersCollection.findOne({ _id: new ObjectId(user.userId) })
-    const packDoc = await packsCollection.findOne({ _id: new ObjectId(packId) })
+    const userDoc = await usersCollection.findOne({ discordId: user.userId })
+    const packDoc = await packsCollection.findOne({ _id: packId })
 
     if (!userDoc) {
+      console.log("User document not found for userId:", user.userId)
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
     if (!packDoc) {
+      console.log("Pack document not found for packId:", packId)
       return NextResponse.json({ error: "Pack not found" }, { status: 404 })
     }
 
-    // Check if user has enough credits
-    if (userDoc.credits < packDoc.price) {
+    // Check if user has enough credits for the requested quantity
+    const totalPrice = packDoc.price * quantity
+    if (userDoc.credits < totalPrice) {
+      console.log("Insufficient credits for userId:", user.userId)
       return NextResponse.json({ error: "Insufficient credits" }, { status: 400 })
     }
 
-    // Generate 8 cards based on slot ratios
+    // Generate cards for each pack
     const pulledCards: CardData[] = []
-
-    for (let i = 0; i < 8; i++) {
-      const random = Math.random()
-      let accumulated = 0
-      let selectedRarity = packDoc.slotRatios[0]
-
-      for (const ratio of packDoc.slotRatios) {
-        accumulated += ratio.chance
-        if (random <= accumulated) {
-          selectedRarity = ratio
-          break
+    for (let packNum = 0; packNum < quantity; packNum++) {
+      for (let i = 0; i < 8; i++) {
+        const random = Math.random()
+        let accumulated = 0
+        let selectedRarity = packDoc.slotRatios[0]
+        for (const ratio of packDoc.slotRatios) {
+          accumulated += ratio.chance
+          if (random <= accumulated) {
+            selectedRarity = ratio
+            break
+          }
         }
-      }
-
-      // Pick random card with this rarity from card pool
-      const cardsWithRarity = packDoc.cardPool.filter(
-        (cardCode: number) => getCardRarity(cardCode) === selectedRarity.rarity,
-      )
-
-      if (cardsWithRarity.length > 0) {
-        const randomCard = cardsWithRarity[Math.floor(Math.random() * cardsWithRarity.length)]
-        pulledCards.push({
-          code: randomCard,
-          rarity: selectedRarity.rarity,
-        })
+        // Pick random card with this rarity from card pool
+        const cardsWithRarity = packDoc.cardPool.filter(
+          (card: any) => card.rarities && card.rarities.includes(selectedRarity.rarity),
+        )
+        if (cardsWithRarity.length > 0) {
+          const randomCard = cardsWithRarity[Math.floor(Math.random() * cardsWithRarity.length)]
+          pulledCards.push({
+            code: randomCard.code,
+            rarity: selectedRarity.rarity,
+          })
+        }
       }
     }
 
     // Deduct credits
     await usersCollection.updateOne(
-      { _id: new ObjectId(user.userId) },
+      { discordId: user.userId },
       {
-        $inc: { credits: -packDoc.price },
+        $inc: { credits: -totalPrice },
         $set: { updatedAt: new Date() },
       },
     )
@@ -95,10 +99,15 @@ export async function POST(request: NextRequest) {
         createdAt: now,
       })
 
+      // Get card name from SQLite
+      const cardInfo = getCardByCode(card.code)
+
       insertedCards.push({
         _id: result.insertedId,
         cardCode: card.code,
         rarity: card.rarity,
+        name: cardInfo ? cardInfo.name : "Unknown Card",
+        imageUrl: `https://images.ygoprodeck.com/images/cards/${card.code}.jpg`,
       })
     }
 
@@ -110,10 +119,4 @@ export async function POST(request: NextRequest) {
     console.error("Open pack error:", error)
     return NextResponse.json({ error: "Failed to open pack" }, { status: 500 })
   }
-}
-
-function getCardRarity(cardCode: number): string {
-  // This would typically look up the rarity from a card database
-  // For now, return based on code pattern
-  return "Common"
 }

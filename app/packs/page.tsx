@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Package, Sparkles } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useRef } from "react"
 
 interface Pack {
   _id: string
@@ -18,13 +19,28 @@ interface Pack {
   imageUrl?: string
 }
 
+
 interface PulledCard {
+  _id?: string
   name: string
   rarity: string
   imageUrl?: string
-  canDust: boolean
+  canDust?: boolean
   dustValue?: number
+  packIndex?: number // for pagination
 }
+
+// Rarity order for sorting
+const RARITY_ORDER = [
+  "Ultimate Rare",
+  "Secret Rare",
+  "Ultra Rare",
+  "Super Rare",
+  "Rare",
+  "Common",
+]
+
+import { useRef as useReactRef } from "react"
 
 export default function PacksPage() {
   const router = useRouter()
@@ -32,8 +48,50 @@ export default function PacksPage() {
   const [packs, setPacks] = useState<Pack[]>([])
   const [loading, setLoading] = useState(true)
   const [opening, setOpening] = useState(false)
+
   const [pulledCards, setPulledCards] = useState<PulledCard[]>([])
   const [showResults, setShowResults] = useState(false)
+  const [currentPack, setCurrentPack] = useState(0)
+  const [dustDialog, setDustDialog] = useState<{ group: GroupedCard | null, open: boolean }>({ group: null, open: false })
+  const [dusting, setDusting] = useState(false)
+  const dustInputRef = useRef<HTMLInputElement>(null)
+  const blockNavRef = useReactRef(false)
+
+  interface GroupedCard {
+    key: string
+    name: string
+    rarity: string
+    imageUrl?: string
+    dustValue?: number
+    canDust?: boolean
+    count: number
+    ids: string[]
+  }
+
+  // Group identical cards (same dustValue, originalOwner, pack, rarity)
+  function groupCards(cards: PulledCard[]): GroupedCard[] {
+    const map = new Map<string, GroupedCard>()
+    for (const card of cards.filter(c => c.canDust)) {
+      const key = [card.name, card.rarity, card.dustValue, card.packIndex].join("|")
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          name: card.name,
+          rarity: card.rarity,
+          imageUrl: card.imageUrl,
+          dustValue: card.dustValue,
+          canDust: card.canDust,
+          count: 1,
+          ids: card._id ? [card._id] : [],
+        })
+      } else {
+        const g = map.get(key)!
+        g.count++
+        if (card._id) g.ids.push(card._id)
+      }
+    }
+    return Array.from(map.values())
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,8 +116,41 @@ export default function PacksPage() {
     fetchData()
   }, [router])
 
+  const [packQuantities, setPackQuantities] = useState<{ [packId: string]: number }>({})
+
+  // Block navigation while opening packs
+  useEffect(() => {
+    if (!opening) return;
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', beforeUnload);
+    blockNavRef.current = true;
+    const handleRouteChange = (url: string) => {
+      if (blockNavRef.current && !window.confirm('Packs are still being opened. Are you sure you want to leave?')) {
+        throw 'Route change aborted.';
+      }
+    };
+    window.addEventListener('popstate', beforeUnload);
+    // Next.js router events
+    if (router && router.events) {
+      router.events.on('routeChangeStart', handleRouteChange);
+    }
+    return () => {
+      window.removeEventListener('beforeunload', beforeUnload);
+      window.removeEventListener('popstate', beforeUnload);
+      if (router && router.events) {
+        router.events.off('routeChangeStart', handleRouteChange);
+      }
+      blockNavRef.current = false;
+    };
+  }, [opening, router]);
+
   const handleOpenPack = async (packId: string, price: number) => {
-    if (user.credits < price) return
+    const quantity = Math.max(1, Math.min(packQuantities[packId] || 1, 100))
+    if (user.credits < price * quantity) return
 
     setOpening(true)
 
@@ -69,13 +160,19 @@ export default function PacksPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ packId }),
+        body: JSON.stringify({ packId, quantity }),
       })
 
       if (res.ok) {
         const data = await res.json()
-        setPulledCards(data.cards)
+        let cards: PulledCard[] = data.cards
+        if (cards.length > 0 && !('packIndex' in cards[0])) {
+          const packSize = packs.find(p => p._id === packId)?.cardCount || 8
+          cards = cards.map((card, i) => ({ ...card, packIndex: Math.floor(i / packSize) }))
+        }
+        setPulledCards(cards)
         setUser({ ...user, credits: data.newCredits })
+        setCurrentPack(0)
         setShowResults(true)
       }
     } catch (error) {
@@ -85,23 +182,35 @@ export default function PacksPage() {
     }
   }
 
-  const handleDustCard = async (cardId: string) => {
-    try {
-      const res = await fetch("/api/cards/dust", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ cardId }),
-      })
+  // Open dust dialog for a group
+  const openDustDialog = (group: GroupedCard) => {
+    setDustDialog({ group, open: true })
+    setTimeout(() => {
+      dustInputRef.current?.focus()
+    }, 100)
+  }
 
+  // Dust multiple cards from a group
+  const handleDustGroup = async (group: GroupedCard, quantity: number) => {
+    setDusting(true)
+    try {
+      const ids = group.ids.slice(0, quantity)
+      const res = await fetch("/api/collection/dust", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardIds: ids }),
+      })
       if (res.ok) {
         const data = await res.json()
-        setUser({ ...user, credits: data.newCredits })
-        setPulledCards(pulledCards.filter((card: any) => card._id !== cardId))
+        setUser((prev: any) => ({ ...prev, credits: (prev.credits || 0) + (group.dustValue || 0) * quantity }))
+        // Remove dusted cards from pulledCards
+        setPulledCards(prev => prev.filter(card => !ids.includes(card._id!)))
+        setDustDialog({ group: null, open: false })
       }
     } catch (error) {
-      console.error("Failed to dust card:", error)
+      // Optionally show error
+    } finally {
+      setDusting(false)
     }
   }
 
@@ -116,7 +225,16 @@ export default function PacksPage() {
   if (!user) return null
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Blocking spinner overlay while opening packs */}
+      {opening && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-primary"></div>
+            <span className="text-white text-lg font-semibold">Opening packs...</span>
+          </div>
+        </div>
+      )}
       <Navigation user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -141,13 +259,27 @@ export default function PacksPage() {
                   <span className="text-2xl font-bold text-primary">{pack.price} credits</span>
                 </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 w-full">
+                  <label htmlFor={`quantity-${pack._id}`} className="text-xs">Qty:</label>
+                  <input
+                    id={`quantity-${pack._id}`}
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={packQuantities[pack._id] || 1}
+                    onChange={e => setPackQuantities(q => ({ ...q, [pack._id]: Math.max(1, Math.min(100, Number(e.target.value) || 1)) }))}
+                    className="w-16 border rounded px-2 py-1 text-center text-sm"
+                    disabled={opening}
+                  />
+                  <span className="text-xs text-muted-foreground">(max 100)</span>
+                </div>
                 <Button
                   className="w-full"
                   onClick={() => handleOpenPack(pack._id, pack.price)}
-                  disabled={user.credits < pack.price || opening}
+                  disabled={user.credits < pack.price * (packQuantities[pack._id] || 1) || opening}
                 >
-                  {opening ? "Opening..." : user.credits < pack.price ? "Not Enough Credits" : "Open Pack"}
+                  {opening ? "Opening..." : user.credits < pack.price * (packQuantities[pack._id] || 1) ? "Not Enough Credits" : `Open ${packQuantities[pack._id] || 1} Pack${(packQuantities[pack._id] || 1) > 1 ? 's' : ''}`}
                 </Button>
               </CardFooter>
             </Card>
@@ -156,7 +288,27 @@ export default function PacksPage() {
       </main>
 
       <Dialog open={showResults} onOpenChange={setShowResults}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className={
+          (() => {
+            let packCardCount = 8;
+            if (pulledCards.length > 0) {
+              // Try to find the pack by packId if available
+              const firstPackIndex = pulledCards[0]?.packIndex;
+              if (typeof firstPackIndex === 'number') {
+                // If packIndex is present, try to infer pack size from packs array
+                // Assume all packs opened are of the same type (from handleOpenPack)
+                // Use the quantity input to determine which pack was opened
+                // Fallback to packs[0] if not found
+                packCardCount = packs[0]?.cardCount || 8;
+              } else {
+                // If no packIndex, fallback to packs[0]
+                packCardCount = packs[0]?.cardCount || 8;
+              }
+            }
+            return (pulledCards.length > 0 && pulledCards.length / packCardCount > 10)
+              ? "max-h-[90vh] min-h-[60vh] overflow-y-auto" : "max-h-[80vh] overflow-y-auto";
+          })()
+        }>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
@@ -165,33 +317,217 @@ export default function PacksPage() {
             <DialogDescription>Here are your new cards</DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            {pulledCards.map((card, index) => (
-              <div key={index} className="space-y-2">
-                <Card className="overflow-hidden">
-                  <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center">
-                    <span className="text-4xl">🃏</span>
+          {/* If more than 10 packs, show summary by rarity */}
+          {(() => {
+            const packSize = pulledCards.length > 0 ? (packs.find(p => p._id === pulledCards[0]?.packIndex !== undefined ? packs[0]._id : "")?.cardCount || 8) : 8;
+            const quantity = pulledCards.length > 0 ? pulledCards.length / packSize : 0;
+            if (quantity > 10) {
+              // Group all pulled cards by rarity, then by name
+              const rarityGroups = RARITY_ORDER.map(rarity => ({
+                rarity,
+                cards: pulledCards.filter(card => card.rarity === rarity)
+              })).filter(g => g.cards.length > 0)
+              return (
+                <div className="space-y-8">
+                  {rarityGroups.map(rg => {
+                    // Group by name
+                    const nameMap = new Map<string, { name: string, imageUrl?: string, count: number }>()
+                    for (const card of rg.cards) {
+                      if (!nameMap.has(card.name)) {
+                        nameMap.set(card.name, { name: card.name, imageUrl: card.imageUrl, count: 1 })
+                      } else {
+                        nameMap.get(card.name)!.count++
+                      }
+                    }
+                    const grouped = Array.from(nameMap.values())
+                    return (
+                      <div key={rg.rarity}>
+                        <h3 className="font-bold text-lg mb-2">{rg.rarity}</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                          {grouped.map(card => (
+                            <div key={card.name} className="flex flex-col items-center">
+                              <div className="aspect-[2/3] w-full bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center mb-2">
+                                <img
+                                  src={card.imageUrl || "/placeholder.svg"}
+                                  alt={card.name}
+                                  className="max-h-full max-w-full object-contain"
+                                  loading="lazy"
+                                />
+                              </div>
+                              <span className="font-semibold text-sm truncate w-full text-center">{card.name}</span>
+                              <span className="block text-xs mt-1">x{card.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            }
+            // else, show paginated view as before
+            // ...existing code...
+            // Find max packIndex
+            const maxPack = pulledCards.reduce((max, c) => c.packIndex !== undefined && c.packIndex > max ? c.packIndex : max, 0)
+            if (maxPack > 0) {
+              return (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Button size="sm" variant="outline" onClick={() => setCurrentPack(p => Math.max(0, p - 1))} disabled={currentPack === 0}>
+                      Previous Pack
+                    </Button>
+                    <span className="text-sm">Pack {currentPack + 1} of {maxPack + 1}</span>
+                    <Button size="sm" variant="outline" onClick={() => setCurrentPack(p => Math.min(maxPack, p + 1))} disabled={currentPack === maxPack}>
+                      Next Pack
+                    </Button>
                   </div>
-                  <CardContent className="p-3">
-                    <p className="font-semibold text-sm truncate">{card.name}</p>
-                    <Badge variant="outline" className="mt-1 text-xs">
-                      {card.rarity}
-                    </Badge>
-                  </CardContent>
-                </Card>
-                {card.canDust && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full bg-transparent"
-                    onClick={() => handleDustCard((card as any)._id)}
-                  >
-                    Dust for {card.dustValue}
+                  {/* Responsive horizontal list or grid */}
+                  <div className="w-full">
+                    {/* Desktop: horizontal scrollable row */}
+                    <div className="hidden md:flex gap-4 overflow-x-auto pb-2" style={{ minHeight: 320 }}>
+                      {groupCards(pulledCards.filter(card => card.packIndex === currentPack || card.packIndex === undefined))
+                        .concat(
+                          pulledCards
+                            .filter(card => card.packIndex === currentPack || card.packIndex === undefined)
+                            .filter(card => !card.canDust)
+                            .map(card => ({
+                              key: card._id || card.name + card.rarity,
+                              name: card.name,
+                              rarity: card.rarity,
+                              imageUrl: card.imageUrl,
+                              dustValue: card.dustValue,
+                              canDust: false,
+                              count: 1,
+                              ids: card._id ? [card._id] : [],
+                            }))
+                        )
+                        .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity))
+                        .map((group, index) => (
+                          <div key={group.key} className="space-y-2 min-w-[180px] max-w-[200px]">
+                            <Card className="overflow-hidden">
+                              <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center">
+                                <img
+                                  src={group.imageUrl || "/placeholder.svg"}
+                                  alt={group.name}
+                                  className="max-h-full max-w-full object-contain"
+                                  loading="lazy"
+                                />
+                              </div>
+                              <CardContent className="p-3">
+                                <p className="font-semibold text-sm truncate">{group.name}</p>
+                                <Badge variant="outline" className="mt-1 text-xs">
+                                  {group.rarity}
+                                </Badge>
+                                <span className="block text-xs mt-1">x{group.count}</span>
+                              </CardContent>
+                            </Card>
+                            {group.canDust && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full bg-transparent"
+                                onClick={() => openDustDialog(group)}
+                              >
+                                Dust for {group.dustValue} × {group.count}
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                    {/* Mobile: grid */}
+                    <div className="grid grid-cols-2 gap-4 mt-4 md:hidden">
+                      {groupCards(pulledCards.filter(card => card.packIndex === currentPack || card.packIndex === undefined))
+                        .concat(
+                          pulledCards
+                            .filter(card => card.packIndex === currentPack || card.packIndex === undefined)
+                            .filter(card => !card.canDust)
+                            .map(card => ({
+                              key: card._id || card.name + card.rarity,
+                              name: card.name,
+                              rarity: card.rarity,
+                              imageUrl: card.imageUrl,
+                              dustValue: card.dustValue,
+                              canDust: false,
+                              count: 1,
+                              ids: card._id ? [card._id] : [],
+                            }))
+                        )
+                        .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity))
+                        .map((group, index) => (
+                          <div key={group.key} className="space-y-2">
+                            <Card className="overflow-hidden">
+                              <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center">
+                                <img
+                                  src={group.imageUrl || "/placeholder.svg"}
+                                  alt={group.name}
+                                  className="max-h-full max-w-full object-contain"
+                                  loading="lazy"
+                                />
+                              </div>
+                              <CardContent className="p-3">
+                                <p className="font-semibold text-sm truncate">{group.name}</p>
+                                <Badge variant="outline" className="mt-1 text-xs">
+                                  {group.rarity}
+                                </Badge>
+                                <span className="block text-xs mt-1">x{group.count}</span>
+                              </CardContent>
+                            </Card>
+                            {group.canDust && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full bg-transparent"
+                                onClick={() => openDustDialog(group)}
+                              >
+                                Dust for {group.dustValue} × {group.count}
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+            return null
+          })()}
+
+          {/* Dust quantity dialog (unchanged) */}
+          <Dialog open={dustDialog.open} onOpenChange={open => setDustDialog(d => ({ ...d, open }))}>
+            <DialogContent className="max-w-xs">
+              <DialogHeader>
+                <DialogTitle>Dust Cards</DialogTitle>
+                <DialogDescription>
+                  How many <b>{dustDialog.group?.name}</b> ({dustDialog.group?.rarity}) would you like to dust?
+                </DialogDescription>
+              </DialogHeader>
+              {dustDialog.group && (
+                <form
+                  onSubmit={e => {
+                    e.preventDefault()
+                    const qty = Number(dustInputRef.current?.value || 1)
+                    if (dustDialog.group && qty > 0 && qty <= (dustDialog.group.count || 1)) {
+                      handleDustGroup(dustDialog.group, qty)
+                    }
+                  }}
+                  className="flex flex-col gap-4"
+                >
+                  <input
+                    ref={dustInputRef}
+                    type="number"
+                    min={1}
+                    max={dustDialog.group.count}
+                    defaultValue={dustDialog.group.count}
+                    className="border rounded px-2 py-1 text-center text-sm"
+                    disabled={dusting}
+                  />
+                  <Button type="submit" disabled={dusting}>
+                    {dusting ? "Dusting..." : `Dust ${dustDialog.group.dustValue} × N`}
                   </Button>
-                )}
-              </div>
-            ))}
-          </div>
+                </form>
+              )}
+            </DialogContent>
+          </Dialog>
         </DialogContent>
       </Dialog>
     </div>

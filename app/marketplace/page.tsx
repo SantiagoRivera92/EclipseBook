@@ -169,7 +169,14 @@ export default function MarketplacePage() {
                   <Card key={listing._id}>
                     <CardHeader>
                       <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center mb-3">
-                        <span className="text-5xl">🃏</span>
+                        {listing.imageUrl && (
+                          <img
+                            src={listing.imageUrl}
+                            alt={listing.cardName}
+                            className="max-h-full max-w-full object-contain"
+                            loading="lazy"
+                          />
+                        )}
                       </div>
                       <CardTitle className="text-base line-clamp-1">{listing.cardName}</CardTitle>
                       <CardDescription>Sold by {listing.seller}</CardDescription>
@@ -212,7 +219,14 @@ export default function MarketplacePage() {
                   <Card key={auction._id}>
                     <CardHeader>
                       <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center mb-3">
-                        <span className="text-5xl">🃏</span>
+                        {auction.imageUrl && (
+                          <img
+                            src={auction.imageUrl}
+                            alt={auction.cardName}
+                            className="max-h-full max-w-full object-contain"
+                            loading="lazy"
+                          />
+                        )}
                       </div>
                       <CardTitle className="text-base line-clamp-1">{auction.cardName}</CardTitle>
                       <CardDescription>Sold by {auction.seller}</CardDescription>

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { verifyToken } from "@/lib/auth"
+import { getDatabase } from "@/lib/db"
 
 // Rate limiting store (in production, use Redis or similar)
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>()
@@ -71,7 +72,19 @@ export async function proxy(request: NextRequest) {
     }
 
     const payload = await verifyToken(token)
-    if (!payload || !payload.isAdmin) {
+    if (!payload) {
+      return NextResponse.redirect(new URL("/dashboard", request.url))
+    }
+
+    // Check database for current admin status (JWT might be stale)
+    const db = await getDatabase()
+    const usersCollection = db.collection("users")
+    const user = await usersCollection.findOne(
+      { discordId: payload.userId },
+      { projection: { isAdmin: 1 } }
+    )
+
+    if (!user || !user.isAdmin) {
       return NextResponse.redirect(new URL("/dashboard", request.url))
     }
   }

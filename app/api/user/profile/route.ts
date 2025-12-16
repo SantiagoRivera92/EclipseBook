@@ -2,7 +2,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getDatabase } from "@/lib/db"
-import { ObjectId } from "mongodb"
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser()

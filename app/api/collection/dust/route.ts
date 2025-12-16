@@ -11,6 +11,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+
+  console.log(user);
+  
   try {
     const { cardIds } = await request.json()
 
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
     if (totalDustValue > 0) {
       // Give user credits
       await usersCollection.updateOne(
-        { _id: new ObjectId(user.userId) },
+        { discordId: user.userId },
         {
           $inc: { credits: totalDustValue },
           $set: { updatedAt: new Date() },

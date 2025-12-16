@@ -6,7 +6,7 @@ export const UserSchema = z.object({
   discordId: z.string(),
   username: z.string(),
   avatar: z.string().url().optional(),
-  credits: z.number().int().non_negative(),
+  credits: z.number().int().min(0),
   lastCreditClaim: z.date(),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -17,8 +17,14 @@ export type User = z.infer<typeof UserSchema>
 export const CardPackSchema = z.object({
   _id: z.string().optional(),
   name: z.string(),
+  description: z.string().optional(),
   price: z.number().int().positive(),
-  cardPool: z.array(z.number()), // Card codes
+  cardPool: z.array(
+    z.object({
+      code: z.number().int().positive(),
+      rarities: z.array(z.string()),
+    }),
+  ),
   slotRatios: z.array(
     z.object({
       rarity: z.string(),
@@ -27,6 +33,7 @@ export const CardPackSchema = z.object({
     }),
   ),
   averageDustValue: z.number().positive(),
+  createdAt: z.date().optional(),
 })
 
 export type CardPack = z.infer<typeof CardPackSchema>

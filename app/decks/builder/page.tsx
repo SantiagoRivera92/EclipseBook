@@ -133,7 +133,14 @@ export default function DeckBuilderPage() {
                         }}
                       >
                         <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center border-2 border-border hover:border-primary">
-                          <span className="text-3xl">🃏</span>
+                          {card.imageUrl && (
+                            <img
+                              src={card.imageUrl}
+                              alt={card.name}
+                              className="max-h-full max-w-full object-contain"
+                              loading="lazy"
+                            />
+                          )}
                         </div>
                         <p className="text-xs mt-1 truncate text-center">{card.name}</p>
                       </div>

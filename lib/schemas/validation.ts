@@ -11,10 +11,7 @@ export const ProfileUpdateSchema = z.object({
 })
 
 export const AdminCreditsSchema = z.object({
-  targetUserId: z
-    .string()
-    .regex(/^[0-9a-fA-F]{24}$/, "Invalid user ID")
-    .optional(),
+  targetUserId: z.string().min(1, "User ID or username required").optional(),
   amount: z.number().int().positive().max(1000000, "Amount too high"),
   reason: z.string().min(3, "Reason required").max(500),
   targetAll: z.boolean().optional(),

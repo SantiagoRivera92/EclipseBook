@@ -229,7 +229,7 @@ export default function CollectionPage() {
         <Dialog open={massDustDialog} onOpenChange={open => { setMassDustDialog(open); setConfirmMassDust(null); setMassDustError(null); }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Mass Dismantle</DialogTitle>
+              <DialogTitle>Mass Dusting</DialogTitle>
               <DialogDescription>
                 {(() => {
                   const keepCheap = calculateMassDustStats('keepcheap')
@@ -274,7 +274,7 @@ export default function CollectionPage() {
               return (
                 <div className="mt-6">
                   <div className="mb-2 text-sm">
-                    Are you sure you want to dismantle <b>{stats.totalCards}</b> cards for <b>{stats.totalCredits}</b> credits and keep 3 of each card ({confirmMassDust === 'keepexpensive' ? 'prioritizing highest rarity' : 'prioritizing lowest rarity'})?
+                    Are you sure you want to dust <b>{stats.totalCards}</b> cards for <b>{stats.totalCredits}</b> credits and keep 3 of each card ({confirmMassDust === 'keepexpensive' ? 'prioritizing highest rarity' : 'prioritizing lowest rarity'})?
                   </div>
                   <div className="flex gap-2">
                     <Button

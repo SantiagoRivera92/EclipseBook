@@ -35,9 +35,16 @@ export async function POST(request: NextRequest) {
       }
 
       totalDustValue += card.dustValue
-
+      var maxTries = 3
       // Remove the card from collection
-      await collectionCollection.deleteOne({ _id: new ObjectId(cardId) })
+      let deleteResult = await collectionCollection.deleteOne({ _id: new ObjectId(cardId) })
+      while (deleteResult.deletedCount === 0 && maxTries > 0) {
+        // Wait 500ms and try again
+        console.log(`Retrying deletion for cardId: ${cardId} after 500ms`)
+        await new Promise(res => setTimeout(res, 500))
+        deleteResult = await collectionCollection.deleteOne({ _id: new ObjectId(cardId) })
+        maxTries--
+      }
     }
 
     if (totalDustValue > 0) {

@@ -98,7 +98,7 @@ function groupCards(cards: any[]) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">My Collection</h1>
-          <p className="text-muted-foreground">{cards.length} cards owned</p>
+          <p className="text-muted-foreground">{cards.reduce((sum, card) => sum + (card.count || 1), 0)} cards owned</p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -111,21 +111,6 @@ function groupCards(cards: any[]) {
               className="pl-10"
             />
           </div>
-          <Select value={rarityFilter} onValueChange={setRarityFilter}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by rarity" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Rarities</SelectItem>
-              <SelectItem value="Common">Common</SelectItem>
-              <SelectItem value="Rare">Rare</SelectItem>
-              <SelectItem value="Super Rare">Super Rare</SelectItem>
-              <SelectItem value="Ultra Rare">Ultra Rare</SelectItem>
-              <SelectItem value="Secret Rare">Secret Rare</SelectItem>
-              <SelectItem value="Ultimate Rare">Ultimate Rare</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {filteredCards.length === 0 ? (
@@ -225,7 +210,24 @@ function groupCopies(copies: any[]) {
 
 function GroupedCopiesDialog({ copies, minKeep, dustError, dustSuccess, setDustError, setDustSuccess, setDusting, dusting, setSelectedCard, setCards, setUser, cardCode }: any) {
   const [dustDialog, setDustDialog] = useState<{ group: any, open: boolean }>({ group: null, open: false });
+  const [qty, setQty] = useState(1);
   const dustInputRef = useRef<HTMLInputElement>(null);
+
+  const totalCopies = copies.reduce((sum: number, c: any) => sum + (c.count || 1), 0);
+
+  function getMaxDustable(group: any) {
+    const thisGroup = group.count;
+    const otherGroups = totalCopies - thisGroup;
+    if (otherGroups >= minKeep) return thisGroup;
+    return Math.min(Math.max(0, totalCopies - minKeep), 100);
+  }
+
+  // Reset qty when dialog opens or group changes
+  React.useEffect(() => {
+    if (dustDialog.open && dustDialog.group) {
+      setQty(Math.min(Math.max(1, getMaxDustable(dustDialog.group)), 100));
+    }
+  }, [dustDialog.open, dustDialog.group]);
 
   const handleDustGroup = async (group: any, quantity: number) => {
     setDusting(group.key);
@@ -241,16 +243,26 @@ function GroupedCopiesDialog({ copies, minKeep, dustError, dustSuccess, setDustE
       const data = await res.json();
       if (res.ok) {
         setDustSuccess(`Dusted ${quantity} for ${group.dustValue * quantity} credits!`);
-        setSelectedCard((prev: any) => ({
-          ...prev,
-          copies: prev.copies.filter((c: any) => !ids.includes(c._id)),
-          count: prev.count - quantity,
+        setSelectedCard((prev: any) => {
+          const newCopies = prev.copies.filter((c: any) => !ids.includes(c._id));
+          return {
+            ...prev,
+            copies: newCopies,
+            count: newCopies.length,
+          };
+        });
+        setCards((prev: any[]) => prev.map((c: any) => {
+          if (c.cardCode === cardCode) {
+            // Remove dusted copies from all printings for this cardCode
+            const newCopies = c.copies.filter((c2: any) => !ids.includes(c2._id));
+            return {
+              ...c,
+              copies: newCopies,
+              count: newCopies.length,
+            };
+          }
+          return c;
         }));
-        setCards((prev: any[]) => prev.map((c: any) =>
-          c.cardCode === cardCode
-            ? { ...c, count: c.count - quantity, copies: c.copies.filter((c2: any) => !ids.includes(c2._id)) }
-            : c
-        ));
         setUser((prev: any) => ({
           ...prev,
           credits: (prev.credits || 0) + (group.dustValue || 0) * quantity,
@@ -273,7 +285,7 @@ function GroupedCopiesDialog({ copies, minKeep, dustError, dustSuccess, setDustE
       {dustError && <div className="text-red-500 text-xs mb-2">{dustError}</div>}
       {dustSuccess && <div className="text-green-600 text-xs mb-2">{dustSuccess}</div>}
       {grouped.map((group: any, idx: number) => {
-        const maxDustable = Math.max(0, group.count - minKeep);
+        const maxDustable = getMaxDustable(group);
         return (
           <Card key={group.ids.join("-") || idx} className="p-3 flex flex-col gap-2">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -319,7 +331,9 @@ function GroupedCopiesDialog({ copies, minKeep, dustError, dustSuccess, setDustE
                 <>
                   How many <b>{dustDialog.group.rarity}</b> ({dustDialog.group.dustValue} dust) would you like to dust?
                   <br />
-                  <span className="text-xs text-muted-foreground">You must keep at least {minKeep} copies. Max: {Math.max(0, dustDialog.group.count - minKeep)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    You must keep at least {minKeep} copies of this card (any printing). Max: {getMaxDustable(dustDialog.group)}. You can only dust 100 cards at a time.
+                  </span>
                 </>
               )}
             </DialogDescription>
@@ -328,8 +342,7 @@ function GroupedCopiesDialog({ copies, minKeep, dustError, dustSuccess, setDustE
             <form
               onSubmit={e => {
                 e.preventDefault();
-                const maxDustable = Math.max(0, dustDialog.group.count - minKeep);
-                const qty = Math.min(Number(dustInputRef.current?.value || 1), maxDustable);
+                const maxDustable = getMaxDustable(dustDialog.group);
                 if (qty > 0 && qty <= maxDustable) {
                   handleDustGroup(dustDialog.group, qty);
                 }
@@ -340,13 +353,19 @@ function GroupedCopiesDialog({ copies, minKeep, dustError, dustSuccess, setDustE
                 ref={dustInputRef}
                 type="number"
                 min={1}
-                max={Math.max(0, dustDialog.group.count - minKeep)}
-                defaultValue={Math.max(1, dustDialog.group.count - minKeep)}
+                max={getMaxDustable(dustDialog.group)}
+                value={qty}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  setQty(isNaN(val) ? 1 : val);
+                }}
                 className="border rounded px-2 py-1 text-center text-sm"
-                disabled={dusting || (dustDialog.group.count - minKeep) === 0}
+                disabled={dusting || getMaxDustable(dustDialog.group) === 0}
               />
-              <Button type="submit" disabled={dusting || (dustDialog.group.count - minKeep) === 0}>
-                {dusting ? "Dusting..." : `Dust ${dustDialog.group.dustValue} × N`}
+              <Button type="submit" disabled={dusting || getMaxDustable(dustDialog.group) === 0}>
+                {dusting
+                  ? "Dusting..."
+                  : `Dust for ${dustDialog.group.dustValue * (isNaN(qty) ? 1 : qty)} Credits`}
               </Button>
             </form>
           )}

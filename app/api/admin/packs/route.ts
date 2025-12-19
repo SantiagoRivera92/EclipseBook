@@ -15,12 +15,14 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { _id, ...updateData } = body
     if (!_id) {
+      console.log("Missing pack _id in request body")
       return NextResponse.json({ error: "Missing pack _id" }, { status: 400 })
     }
 
     const standardizedSlotRatios = SLOT_RATIOS
 
     if (updateData.price <= AVERAGE_DUST_VALUE_PER_PACK) {
+      console.log(`Pack price validation failed: ${updateData.price} <= ${AVERAGE_DUST_VALUE_PER_PACK}`)
       return NextResponse.json(
         {
           error: `Pack price (${updateData.price}) must be greater than average dust value (${AVERAGE_DUST_VALUE_PER_PACK.toFixed(2)})`,
@@ -34,6 +36,7 @@ export async function PUT(request: NextRequest) {
     }
     for (const card of updateData.cardPool) {
       if (!card.code || !Array.isArray(card.rarities) || card.rarities.length === 0) {
+        console.log("Each card in pool must have a code and at least one rarity.", card)
         return NextResponse.json(
           { error: "Each card in pool must have a code and at least one rarity" },
           { status: 400 },
@@ -41,6 +44,7 @@ export async function PUT(request: NextRequest) {
       }
       for (const rarity of card.rarities) {
         if (!standardizedSlotRatios.some((sr) => sr.rarity === rarity)) {
+          console.log(`Card ${card.code} has invalid rarity "${rarity}" not in slot ratios.`)
           return NextResponse.json(
             { error: `Card ${card.code} has rarity "${rarity}" which is not in slot ratios` },
             { status: 400 },
@@ -51,6 +55,7 @@ export async function PUT(request: NextRequest) {
     for (const slotRatio of standardizedSlotRatios) {
       const hasCard = updateData.cardPool.some((card: any) => card.rarities.includes(slotRatio.rarity))
       if (!hasCard) {
+        console.log(`No cards found for rarity "${slotRatio.rarity}" in card pool.`)
         return NextResponse.json(
           { error: `No cards found for rarity "${slotRatio.rarity}" in card pool` },
           { status: 400 },
@@ -61,6 +66,7 @@ export async function PUT(request: NextRequest) {
     const packData = { ...updateData, _id, averageDustValue: AVERAGE_DUST_VALUE_PER_PACK }
     const validation = CardPackSchema.safeParse(packData)
     if (!validation.success) {
+      console.log("Pack data validation failed:", validation.error.errors)
       return NextResponse.json(
         {
           error: "Invalid pack data",

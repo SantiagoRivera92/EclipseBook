@@ -15,8 +15,8 @@ interface Pack {
   name: string
   description: string
   price: number
-  cardCount: number
-  imageUrl?: string
+  cardPool: any[]
+  headerImageUrl?: string
 }
 
 
@@ -168,7 +168,7 @@ export default function PacksPage() {
         console.log(data)
         let cards: PulledCard[] = data.cards
         if (cards.length > 0 && !('packIndex' in cards[0])) {
-          const packSize = packs.find(p => p._id === packId)?.cardCount || 8
+          const packSize = packs.find(p => p._id === packId)?.cardPool.length || 8
           cards = cards.map((card, i) => ({ ...card, packIndex: Math.floor(i / packSize) }))
         }
         setPulledCards(cards)
@@ -217,15 +217,24 @@ export default function PacksPage() {
           {packs.map((pack) => (
             <Card key={pack._id} className="overflow-hidden">
               <CardHeader>
-                <div className="aspect-video bg-gradient-to-br from-primary/20 to-purple-500/20 rounded-lg flex items-center justify-center mb-4">
+                <div className="aspect-video bg-gradient-to-br from-primary/20 to-purple-500/20 rounded-lg flex items-center justify-center mb-4 overflow-hidden">
+                  {pack.headerImageUrl ? (
+                  <img
+                    src={pack.headerImageUrl}
+                    alt={pack.name}
+                    className="object-contain h-full w-full"
+                    loading="lazy"
+                  />
+                  ) : (
                   <Package className="h-16 w-16 text-primary" />
+                  )}
                 </div>
                 <CardTitle>{pack.name}</CardTitle>
                 <CardDescription>{pack.description}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <Badge variant="secondary">{pack.cardCount} cards</Badge>
+                  <Badge variant="secondary">{pack.cardPool.length} cards</Badge>
                   <span className="text-2xl font-bold text-primary">{pack.price} credits</span>
                 </div>
               </CardContent>
@@ -269,10 +278,10 @@ export default function PacksPage() {
                 // Assume all packs opened are of the same type (from handleOpenPack)
                 // Use the quantity input to determine which pack was opened
                 // Fallback to packs[0] if not found
-                packCardCount = packs[0]?.cardCount || 8;
+                packCardCount = packs[0]?.cardPool.length || 8;
               } else {
                 // If no packIndex, fallback to packs[0]
-                packCardCount = packs[0]?.cardCount || 8;
+                packCardCount = packs[0]?.cardPool.length || 8;
               }
             }
             return (pulledCards.length > 0 && pulledCards.length / packCardCount > 10)
@@ -289,7 +298,7 @@ export default function PacksPage() {
 
           {/* If more than 10 packs, show summary by rarity */}
           {(() => {
-            const packSize = pulledCards.length > 0 ? (packs.find(p => p._id === pulledCards[0]?.packIndex !== undefined ? packs[0]._id : "")?.cardCount || 8) : 8;
+            const packSize = pulledCards.length > 0 ? (packs.find(p => p._id === pulledCards[0]?.packIndex !== undefined ? packs[0]._id : "")?.cardPool.length || 8) : 8;
             const quantity = pulledCards.length > 0 ? pulledCards.length / packSize : 0;
             if (quantity > 10) {
               // Group all pulled cards by rarity, then by name

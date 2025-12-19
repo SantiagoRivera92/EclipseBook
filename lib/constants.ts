@@ -28,9 +28,18 @@ export const CARD_COPY_LIMIT = 3
 export const MARKETPLACE_LISTING_EXPIRY = 7 * 24 * 60 * 60 * 1000 // 7 days in ms
 export const MARKETPLACE_AUCTION_EXPIRY = 3 * 24 * 60 * 60 * 1000 // 3 days in ms
 
+export const RARITIES = [
+  "Common",
+  "Rare",
+  "Super Rare",
+  "Ultra Rare",
+  "Secret Rare",
+  "Ultimate Rare",
+]
+
 export const RARITY_DUST_VALUES: Record<string, number> = {
-  Common: 1,
-  Rare: 3,
+  "Common": 1,
+  "Rare": 3,
   "Super Rare": 6,
   "Ultra Rare": 8,
   "Secret Rare": 30,

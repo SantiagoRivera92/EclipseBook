@@ -5,10 +5,21 @@ import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/layout/navigation"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { CardGrid } from "@/components/collection/card-grid"
 import { CardActionsDialog } from "@/components/collection/card-actions-dialog"
 import { PageHeader } from "@/components/shared/page-header"
 import { LoadingSpinner } from "@/components/shared/loading-spinner"
+
+const RARITY_ORDER = [
+  "Ultimate Rare",
+  "Secret Rare",
+  "Ultra Rare",
+  "Super Rare",
+  "Rare",
+  "Common",
+]
 
 export default function CollectionPage() {
   const router = useRouter()
@@ -18,6 +29,71 @@ export default function CollectionPage() {
   const [selectedCard, setSelectedCard] = useState<any>(null)
   const [showCopiesDialog, setShowCopiesDialog] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  const [massDustDialog, setMassDustDialog] = useState(false)
+  // Remove massDustCount, we'll calculate on the fly
+  const [confirmMassDust, setConfirmMassDust] = useState<null | 'keepcheap' | 'keepexpensive'>(null)
+  const [massDusting, setMassDusting] = useState(false)
+  const [massDustError, setMassDustError] = useState<string | null>(null)
+
+  // Calculate how many cards and credits would be dusted if keeping 3 of each (helper)
+  function calculateMassDustStats(priority: 'keepcheap' | 'keepexpensive') {
+    // Group by cardCode, then by rarity
+    const grouped = cards.reduce((acc: Record<number, any[]>, card) => {
+      if (!acc[card.cardCode]) acc[card.cardCode] = []
+      acc[card.cardCode].push(card)
+      return acc
+    }, {} as Record<number, any[]>)
+    let totalCards = 0
+    let totalCredits = 0
+    Object.values(grouped).forEach((rarityList) => {
+      // Sort rarities by priority
+      rarityList.sort((a, b) => {
+        const idxA = RARITY_ORDER.indexOf(a.rarity)
+        const idxB = RARITY_ORDER.indexOf(b.rarity)
+        return priority === 'keepexpensive' ? idxA - idxB : idxB - idxA
+      })
+      let keep = 3
+      for (const r of rarityList) {
+        if (keep > 0) {
+          const toKeep = Math.min(r.count, keep)
+          keep -= toKeep
+          if (r.count > toKeep) {
+            totalCards += r.count - toKeep
+            totalCredits += (r.count - toKeep) * (r.dustValue || 0)
+          }
+        } else {
+          totalCards += r.count
+          totalCredits += r.count * (r.dustValue || 0)
+        }
+      }
+    })
+    return { totalCards, totalCredits }
+  }
+
+  // Mass dust handler
+  const handleMassDust = async (priority: 'keepcheap' | 'keepexpensive') => {
+    setMassDusting(true)
+    setMassDustError(null)
+    try {
+      const res = await fetch(`/api/collection/dust/mass/${priority}`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to dust cards')
+      // Refresh collection
+      const collectionRes = await fetch("/api/collection")
+      if (collectionRes.ok) {
+        const updatedCards = await collectionRes.json()
+        setCards(updatedCards)
+      }
+      setUser((prev: any) => ({ ...prev, credits: (prev.credits || 0) + (data.creditsEarned || 0) }))
+      setMassDustDialog(false)
+      setConfirmMassDust(null)
+    } catch (e: any) {
+      setMassDustError(e.message || 'Failed to dust cards')
+    } finally {
+      setMassDusting(false)
+    }
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -129,17 +205,100 @@ export default function CollectionPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader title="My Collection" description={`${totalCards} cards owned`} />
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Search cards..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+        <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center">
+          <div className="flex flex-row w-full">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Input
+                placeholder="Search cards..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button
+              className="ml-4 bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => setMassDustDialog(true)}
+            >
+              Dust all extra copies
+            </Button>
           </div>
         </div>
+
+        {/* Mass Dust Dialog */}
+        <Dialog open={massDustDialog} onOpenChange={open => { setMassDustDialog(open); setConfirmMassDust(null); setMassDustError(null); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Mass Dismantle</DialogTitle>
+              <DialogDescription>
+                {(() => {
+                  const keepCheap = calculateMassDustStats('keepcheap')
+                  const keepExpensive = calculateMassDustStats('keepexpensive')
+                  return (
+                    <>
+                      You can dismantle <b>{keepCheap.totalCards}</b> cards for <b>{keepCheap.totalCredits}</b> credits (keeping lowest rarity),<br />
+                      or <b>{keepExpensive.totalCards}</b> cards for <b>{keepExpensive.totalCredits}</b> credits (keeping highest rarity).<br />
+                      Which rarities do you want to keep?
+                    </>
+                  )
+                })()}
+              </DialogDescription>
+            </DialogHeader>
+            {massDustError && <div className="text-red-500 text-xs mb-2">{massDustError}</div>}
+            <div className="flex flex-col gap-3 mt-4">
+              <Button
+                variant="destructive"
+                disabled={massDusting}
+                onClick={() => setConfirmMassDust('keepexpensive')}
+              >
+                Keep highest rarity
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={massDusting}
+                onClick={() => setConfirmMassDust('keepcheap')}
+              >
+                Keep lowest rarity
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setMassDustDialog(false)}
+                disabled={massDusting}
+              >
+                Cancel
+              </Button>
+            </div>
+            {/* Confirmation step */}
+            {confirmMassDust && (() => {
+              const stats = calculateMassDustStats(confirmMassDust)
+              return (
+                <div className="mt-6">
+                  <div className="mb-2 text-sm">
+                    Are you sure you want to dismantle <b>{stats.totalCards}</b> cards for <b>{stats.totalCredits}</b> credits and keep 3 of each card ({confirmMassDust === 'keepexpensive' ? 'prioritizing highest rarity' : 'prioritizing lowest rarity'})?
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setConfirmMassDust(null)}
+                      disabled={massDusting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      disabled={massDusting}
+                      onClick={async () => {
+                        await handleMassDust(confirmMassDust)
+                      }}
+                    >
+                      Confirm
+                    </Button>
+                  </div>
+                </div>
+              )
+            })()}
+          </DialogContent>
+        </Dialog>
 
         <CardGrid
           cards={filteredCards}

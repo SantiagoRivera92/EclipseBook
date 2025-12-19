@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth"
 import { getDatabase } from "@/lib/db"
 import { CardPackSchema } from "@/lib/schemas/index"
 import { SLOT_RATIOS, AVERAGE_DUST_VALUE_PER_PACK } from "@/lib/constants"
+import { getCardByCode } from "@/lib/cards-db"
 
 // Update a pack by _id (slug)
 export async function PUT(request: NextRequest) {
@@ -175,6 +176,7 @@ export async function POST(request: NextRequest) {
       _id: slugify(body.name),
       name: body.name,
       description: body.description || "",
+      headerImageUrl: body.headerImageUrl || undefined,
       price: body.price,
       cardPool: body.cardPool,
       slotRatios: SLOT_RATIOS,
@@ -225,6 +227,15 @@ export async function GET(request: NextRequest) {
     const packsCollection = db.collection("card_packs")
 
     const packs = await packsCollection.find({}).toArray()
+    for (const pack of packs) {
+      for (const card of pack.cardPool) {
+        if (card.name) continue
+        const cardInfo = getCardByCode(card.code)
+        const cardName = cardInfo ? cardInfo.name : "Unknown Card"
+        card.name = cardName
+        console.log(`Resolved name for card code ${card.code}: ${cardName}`)
+      }
+    }
 
     return NextResponse.json(packs)
   } catch (error) {

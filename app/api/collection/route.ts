@@ -31,18 +31,22 @@ export async function GET(request: NextRequest) {
 
       // Add each rarity as a separate entry for the frontend
       for (const [rarity, count] of Object.entries(cardEntry.copies)) {
-        if (count > 0) {
+        const countNumber = typeof count === "number" ? count : Number(count)
+        if (countNumber > 0) {
           cards.push({
             cardCode: cardEntry.password,
             name: cardName,
             imageUrl,
             rarity,
-            count,
+            count: countNumber,
             dustValue: RARITY_DUST_VALUES[rarity] || 5,
           })
         }
       }
     }
+
+    // Sort cards by name alphabetically
+    cards.sort((a, b) => a.name.localeCompare(b.name))
 
     return NextResponse.json(cards)
   } catch (error) {

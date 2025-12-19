@@ -1,4 +1,4 @@
-// Search cards by name from cards.cdb SQLite database
+// Search cards by name from cards.db SQLite database
 import { type NextRequest, NextResponse } from "next/server"
 import { searchCardsByName } from "@/lib/cards-db"
 

@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/layout/navigation"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, Clock, Gavel, ShoppingCart } from "lucide-react"
+import { Search, ShoppingCart, Gavel } from "lucide-react"
+import { ListingCard } from "@/components/marketplace/listing-card"
+import { AuctionCard } from "@/components/marketplace/auction-card"
+import { EmptyState } from "@/components/shared/empty-state"
+import { PageHeader } from "@/components/shared/page-header"
+import { LoadingSpinner } from "@/components/shared/loading-spinner"
 
 interface Listing {
   _id: string
@@ -17,6 +19,7 @@ interface Listing {
   price: number
   seller: string
   expiresAt: string
+  imageUrl?: string
 }
 
 interface Auction {
@@ -27,6 +30,7 @@ interface Auction {
   highestBidder?: string
   seller: string
   expiresAt: string
+  imageUrl?: string
 }
 
 export default function MarketplacePage() {
@@ -71,9 +75,7 @@ export default function MarketplacePage() {
     try {
       const res = await fetch("/api/marketplace/buy", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ listingId }),
       })
 
@@ -91,9 +93,7 @@ export default function MarketplacePage() {
     try {
       const res = await fetch("/api/marketplace/bid", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ auctionId, bidAmount }),
       })
 
@@ -112,11 +112,7 @@ export default function MarketplacePage() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <LoadingSpinner />
   }
 
   if (!user) return null
@@ -129,10 +125,7 @@ export default function MarketplacePage() {
       <Navigation user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Marketplace</h1>
-          <p className="text-muted-foreground">Buy and sell cards with other players</p>
-        </div>
+        <PageHeader title="Marketplace" description="Buy and sell cards with other players" />
 
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -158,49 +151,20 @@ export default function MarketplacePage() {
 
           <TabsContent value="listings" className="space-y-4">
             {filteredListings.length === 0 ? (
-              <Card className="p-12 text-center">
-                <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No listings found</h3>
-                <p className="text-muted-foreground">Check back later or adjust your search</p>
-              </Card>
+              <EmptyState
+                icon={ShoppingCart}
+                title="No listings found"
+                description="Check back later or adjust your search"
+              />
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredListings.map((listing) => (
-                  <Card key={listing._id}>
-                    <CardHeader>
-                      <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center mb-3">
-                        {listing.imageUrl && (
-                          <img
-                            src={listing.imageUrl}
-                            alt={listing.cardName}
-                            className="max-h-full max-w-full object-contain"
-                            loading="lazy"
-                          />
-                        )}
-                      </div>
-                      <CardTitle className="text-base line-clamp-1">{listing.cardName}</CardTitle>
-                      <CardDescription>Sold by {listing.seller}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between">
-                        <Badge variant="outline">{listing.rarity}</Badge>
-                        <span className="text-xl font-bold text-primary">{listing.price} credits</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        Expires: {new Date(listing.expiresAt).toLocaleDateString()}
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button
-                        className="w-full"
-                        onClick={() => handleBuyListing(listing._id, listing.price)}
-                        disabled={user.credits < listing.price}
-                      >
-                        {user.credits < listing.price ? "Not Enough Credits" : "Buy Now"}
-                      </Button>
-                    </CardFooter>
-                  </Card>
+                  <ListingCard
+                    key={listing._id}
+                    listing={listing}
+                    userCredits={user.credits}
+                    onBuy={handleBuyListing}
+                  />
                 ))}
               </div>
             )}
@@ -208,52 +172,20 @@ export default function MarketplacePage() {
 
           <TabsContent value="auctions" className="space-y-4">
             {filteredAuctions.length === 0 ? (
-              <Card className="p-12 text-center">
-                <Gavel className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No auctions found</h3>
-                <p className="text-muted-foreground">Check back later or adjust your search</p>
-              </Card>
+              <EmptyState
+                icon={Gavel}
+                title="No auctions found"
+                description="Check back later or adjust your search"
+              />
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredAuctions.map((auction) => (
-                  <Card key={auction._id}>
-                    <CardHeader>
-                      <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-lg flex items-center justify-center mb-3">
-                        {auction.imageUrl && (
-                          <img
-                            src={auction.imageUrl}
-                            alt={auction.cardName}
-                            className="max-h-full max-w-full object-contain"
-                            loading="lazy"
-                          />
-                        )}
-                      </div>
-                      <CardTitle className="text-base line-clamp-1">{auction.cardName}</CardTitle>
-                      <CardDescription>Sold by {auction.seller}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline">{auction.rarity}</Badge>
-                        <span className="text-xl font-bold text-primary">{auction.currentBid} credits</span>
-                      </div>
-                      {auction.highestBidder && (
-                        <p className="text-xs text-muted-foreground mb-2">Highest bidder: {auction.highestBidder}</p>
-                      )}
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        Ends: {new Date(auction.expiresAt).toLocaleDateString()}
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button
-                        className="w-full"
-                        onClick={() => handlePlaceBid(auction._id, auction.currentBid + 10)}
-                        disabled={user.credits < auction.currentBid + 10}
-                      >
-                        Bid {auction.currentBid + 10}
-                      </Button>
-                    </CardFooter>
-                  </Card>
+                  <AuctionCard
+                    key={auction._id}
+                    auction={auction}
+                    userCredits={user.credits}
+                    onBid={handlePlaceBid}
+                  />
                 ))}
               </div>
             )}

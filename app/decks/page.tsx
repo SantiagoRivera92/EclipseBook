@@ -4,10 +4,8 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Navigation } from "@/components/layout/navigation"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Layers, Edit, Trash2 } from "lucide-react"
+import { Plus, Layers } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +16,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { DeckCard } from "@/components/decks/deck-card"
+import { EmptyState } from "@/components/shared/empty-state"
+import { PageHeader } from "@/components/shared/page-header"
+import { LoadingSpinner } from "@/components/shared/loading-spinner"
 
 interface Deck {
   _id: string
@@ -78,11 +80,7 @@ export default function DecksPage() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <LoadingSpinner />
   }
 
   if (!user) return null
@@ -92,78 +90,37 @@ export default function DecksPage() {
       <Navigation user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">My Decks</h1>
-            <p className="text-muted-foreground">Build and manage your decks</p>
-          </div>
-          <Link href="/decks/builder">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Deck
-            </Button>
-          </Link>
-        </div>
-
-        {decks.length === 0 ? (
-          <Card className="p-12 text-center">
-            <Layers className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">No decks yet</h3>
-            <p className="text-muted-foreground mb-4">Create your first deck to start dueling</p>
+        <PageHeader
+          title="My Decks"
+          description="Build and manage your decks"
+          action={
             <Link href="/decks/builder">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Deck
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                New Deck
               </Button>
             </Link>
-          </Card>
+          }
+        />
+
+        {decks.length === 0 ? (
+          <EmptyState
+            icon={Layers}
+            title="No decks yet"
+            description="Create your first deck to start dueling"
+            action={
+              <Link href="/decks/builder">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Deck
+                </Button>
+              </Link>
+            }
+          />
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {decks.map((deck) => (
-              <Card key={deck._id} className="flex flex-col">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="line-clamp-1">{deck.name}</CardTitle>
-                      <CardDescription className="mt-1">
-                        Last modified: {new Date(deck.lastModified).toLocaleDateString()}
-                      </CardDescription>
-                    </div>
-                    {deck.canUse ? (
-                      <Badge variant="default">Ready</Badge>
-                    ) : (
-                      <Badge variant="destructive">Missing Cards</Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-1">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Main Deck:</span>
-                      <span className="font-semibold">{deck.mainDeckCount} cards</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Extra Deck:</span>
-                      <span className="font-semibold">{deck.extraDeckCount} cards</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Side Deck:</span>
-                      <span className="font-semibold">{deck.sideDeckCount} cards</span>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex gap-2">
-                  <Link href={`/decks/builder/${deck._id}`} className="flex-1">
-                    <Button variant="outline" className="w-full gap-2 bg-transparent">
-                      <Edit className="h-4 w-4" />
-                      Edit
-                    </Button>
-                  </Link>
-                  <Button variant="destructive" size="icon" onClick={() => setDeleteId(deck._id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
+              <DeckCard key={deck._id} deck={deck} onDelete={() => setDeleteId(deck._id)} />
             ))}
           </div>
         )}

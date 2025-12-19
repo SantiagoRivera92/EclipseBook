@@ -6,8 +6,7 @@ import { Navigation } from "@/components/layout/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Trophy, TrendingUp, Calendar, Award } from "lucide-react"
+import { LoadingSpinner } from "@/components/shared/loading-spinner"
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -16,14 +15,11 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const fetchData = async () => {
-
       try {
-        const [userRes] = await Promise.all([
-          fetch("/api/user/profile")
-        ])
+        const [userRes] = await Promise.all([fetch("/api/user/profile")])
 
         if (userRes.ok) setUser(await userRes.json())
-          else router.push("/")
+        else router.push("/")
       } catch (error) {
         console.error("Failed to fetch data:", error)
       } finally {
@@ -35,11 +31,7 @@ export default function ProfilePage() {
   }, [router])
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <LoadingSpinner />
   }
 
   if (!user) return null
@@ -49,27 +41,27 @@ export default function ProfilePage() {
       <Navigation user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mx-auto my-auto max-w-4xl">
-            <Card>
-              <CardHeader className="text-center">
-                <Avatar className="h-32 w-32 mx-auto mb-4">
-                  <AvatarImage src={user.avatarUrl || "/placeholder.svg"} />
-                  <AvatarFallback className="text-4xl">{user.username[0].toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <CardTitle className="text-2xl">{user.username}</CardTitle>
-                <CardDescription>Member since {new Date(user.createdAt).toLocaleDateString()}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Credits</span>
-                    <span className="font-bold text-primary">{user.credits}</span>
-                  </div>
+        <div className="mx-auto my-auto max-w-4xl">
+          <Card>
+            <CardHeader className="text-center">
+              <Avatar className="h-32 w-32 mx-auto mb-4">
+                <AvatarImage src={user.avatarUrl || "/placeholder.svg"} />
+                <AvatarFallback className="text-4xl">{user.username[0].toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <CardTitle className="text-2xl">{user.username}</CardTitle>
+              <CardDescription>Member since {new Date(user.createdAt).toLocaleDateString()}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Credits</span>
+                  <span className="font-bold text-primary">{user.credits}</span>
                 </div>
-                <Button className="w-full mt-4">Change Avatar</Button>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+              <Button className="w-full mt-4">Change Avatar</Button>
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </div>
   )

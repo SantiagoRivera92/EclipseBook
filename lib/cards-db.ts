@@ -1,4 +1,4 @@
-// Utility to read from cards.cdb SQLite database
+// Utility to read from cards.db SQLite database
 import Database from "better-sqlite3"
 import { join } from "path"
 import { existsSync } from "fs"
@@ -10,7 +10,7 @@ function getCardsDatabase(): Database.Database {
     return db
   }
 
-  const dbPath = join(process.cwd(), "data", "cards.cdb")
+  const dbPath = join(process.cwd(), "data", "cards.db")
   
   if (!existsSync(dbPath)) {
     throw new Error(`Cards database not found at ${dbPath}`)
@@ -28,8 +28,8 @@ function getCardsDatabase(): Database.Database {
       db.prepare("SELECT 1").get()
     } catch (testError: any) {
       if (testError.code === 'SQLITE_CORRUPT') {
-        console.error(`Cards database at ${dbPath} appears to be corrupted. Please obtain a new cards.cdb file.`)
-        throw new Error("Cards database is corrupted. Please replace data/cards.cdb with a valid file.")
+        console.error(`Cards database at ${dbPath} appears to be corrupted. Please obtain a new cards.db file.`)
+        throw new Error("Cards database is corrupted. Please replace data/cards.db with a valid file.")
       }
       throw testError
     }

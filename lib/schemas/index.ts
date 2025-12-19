@@ -18,6 +18,7 @@ export const CardPackSchema = z.object({
   _id: z.string().optional(),
   name: z.string(),
   description: z.string().optional(),
+  headerImageUrl: z.string().url().optional(),
   price: z.number().int().positive(),
   cardPool: z.array(
     z.object({

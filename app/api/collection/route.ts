@@ -1,8 +1,9 @@
-// Get user's card collection
+// Get user's card collection (streamlined version)
 import { type NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getDatabase } from "@/lib/db"
 import { getCardByCode } from "@/lib/cards-db"
+import { RARITY_DUST_VALUES } from "@/lib/constants"
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser()
@@ -14,44 +15,36 @@ export async function GET(request: NextRequest) {
   try {
     const db = await getDatabase()
     const collectionCollection = db.collection("collection")
-    const usersCollection = db.collection("users")
 
-    const collection = await collectionCollection.find({ userId: user.userId }).sort({ createdAt: -1 }).toArray()
+    const userCollection = await collectionCollection.findOne({ userId: user.userId })
 
-    // Gather all unique originalOwner IDs
-    const ownerIds = Array.from(new Set(collection.map(card => card.originalOwner).filter(Boolean)))
-    const owners = await usersCollection.find({ discordId: { $in: ownerIds } }).toArray()
-    const ownerMap = Object.fromEntries(owners.map(u => [u.discordId, u.username || u.discordId]))
+    if (!userCollection || !userCollection.collection) {
+      return NextResponse.json([])
+    }
 
-    // Group by cardCode, rarity, dustValue, originalOwner, packName
-    const grouped: Record<string, any> = {}
+    const cards = []
 
-    for (const card of collection) {
-      const groupKey = [card.cardCode, card.rarity, card.dustValue, card.originalOwner, card.packName].join("|")
-      if (!grouped[groupKey]) {
-        const cardInfo = getCardByCode(card.cardCode)
-        grouped[groupKey] = {
-          cardCode: card.cardCode,
-          name: cardInfo ? cardInfo.name : "Unknown Card",
-          imageUrl: `https://images.ygoprodeck.com/images/cards/${card.cardCode}.jpg`,
-          rarity: card.rarity,
-          dustValue: card.dustValue,
-          originalOwner: ownerMap[card.originalOwner] || card.originalOwner,
-          packName: card.packName,
-          copies: [],
-          count: 0,
+    for (const cardEntry of userCollection.collection) {
+      const cardInfo = getCardByCode(cardEntry.password)
+      const cardName = cardInfo ? cardInfo.name : "Unknown Card"
+      const imageUrl = `https://images.ygoprodeck.com/images/cards/${cardEntry.password}.jpg`
+
+      // Add each rarity as a separate entry for the frontend
+      for (const [rarity, count] of Object.entries(cardEntry.copies)) {
+        if (count > 0) {
+          cards.push({
+            cardCode: cardEntry.password,
+            name: cardName,
+            imageUrl,
+            rarity,
+            count,
+            dustValue: RARITY_DUST_VALUES[rarity] || 5,
+          })
         }
       }
-      grouped[groupKey].copies.push({ ...card, originalOwner: ownerMap[card.originalOwner] || card.originalOwner })
-      grouped[groupKey].count += 1
     }
 
-    // Sort copies by dustValue descending
-    for (const group of Object.values(grouped)) {
-      group.copies.sort((a: any, b: any) => (b.dustValue || 0) - (a.dustValue || 0))
-    }
-
-    return NextResponse.json(Object.values(grouped))
+    return NextResponse.json(cards)
   } catch (error) {
     console.error("Get collection error:", error)
     return NextResponse.json({ error: "Failed to fetch collection" }, { status: 500 })

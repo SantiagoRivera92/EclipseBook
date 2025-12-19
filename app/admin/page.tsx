@@ -9,11 +9,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Shield, DollarSign, Package, Trophy, Plus, X, AlertCircle, Search } from "lucide-react"
+import { Shield, DollarSign, Package, Trophy, Plus, X, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
+import { SLOT_RATIOS, AVERAGE_DUST_VALUE_PER_PACK } from "@/lib/constants"
 
 export default function AdminPage() {
   const router = useRouter()
@@ -43,20 +43,13 @@ export default function AdminPage() {
   const [hasMoreResults, setHasMoreResults] = useState(false)
   const searchResultsLimit = 200
   const resultsListRef = useRef<HTMLDivElement>(null)
-  const [slotRatios, setSlotRatios] = useState([
-    { rarity: "Common", chance: 0.6, dv: 1 },
-    { rarity: "Rare", chance: 0.2, dv: 3 },
-    { rarity: "Super Rare", chance: 0.1, dv: 6 },
-    { rarity: "Ultra Rare", chance: 0.075, dv: 8 },
-    { rarity: "Secret Rare", chance: 0.02, dv: 30 },
-    { rarity: "Ultimate Rare", chance: 0.005, dv: 120 },
-  ])
+
   // Fetch all packs for editing
   useEffect(() => {
-    if (!user) return;
+    if (!user) return
     fetch("/api/admin/packs")
-      .then(res => res.json())
-      .then(data => setPacks(Array.isArray(data) ? data : []))
+      .then((res) => res.json())
+      .then((data) => setPacks(Array.isArray(data) ? data : []))
       .catch(() => setPacks([]))
   }, [user])
 
@@ -67,7 +60,6 @@ export default function AdminPage() {
     setPackDescription(pack.description)
     setPackPrice(String(pack.price))
     setCardPool(pack.cardPool.map((c: any) => ({ ...c, name: c.name || "" })))
-    setSlotRatios(pack.slotRatios)
   }
 
   // Reset form for new pack
@@ -77,20 +69,12 @@ export default function AdminPage() {
     setPackDescription("")
     setPackPrice("")
     setCardPool([])
-    setSlotRatios([
-      { rarity: "Common", chance: 0.6, dv: 1 },
-      { rarity: "Rare", chance: 0.2, dv: 3 },
-      { rarity: "Super Rare", chance: 0.1, dv: 6 },
-      { rarity: "Ultra Rare", chance: 0.075, dv: 8 },
-      { rarity: "Secret Rare", chance: 0.02, dv: 30 },
-      { rarity: "Ultimate Rare", chance: 0.005, dv: 120 },
-    ])
   }
 
   // Delete pack
   const handleDeletePack = async () => {
-    if (!selectedPackId) return;
-    if (!window.confirm("Are you sure you want to delete this pack? This cannot be undone.")) return;
+    if (!selectedPackId) return
+    if (!window.confirm("Are you sure you want to delete this pack? This cannot be undone.")) return
     const res = await fetch("/api/admin/packs", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -98,7 +82,7 @@ export default function AdminPage() {
     })
     if (res.ok) {
       toast({ title: "Pack deleted" })
-      setPacks(packs.filter(p => p._id !== selectedPackId))
+      setPacks(packs.filter((p) => p._id !== selectedPackId))
       handleNewPack()
     } else {
       toast({ title: "Error", description: "Failed to delete pack", variant: "destructive" })
@@ -107,21 +91,18 @@ export default function AdminPage() {
 
   const availableRarities = ["Common", "Rare", "Super Rare", "Ultra Rare", "Secret Rare", "Ultimate Rare"]
 
-  // Calculate slot ratio total
-  const slotRatioTotal = slotRatios.reduce((sum, r) => sum + r.chance, 0)
-  const slotRatiosValid = Math.abs(slotRatioTotal - 1) < 0.0001
-
-  // Calculate average dust value
-  const averageDustValue = slotRatios.reduce((sum, r) => sum + r.chance * r.dv, 0) * 8
-  const priceValid = packPrice ? Number.parseInt(packPrice) > averageDustValue : false
+  const priceValid = packPrice ? Number.parseInt(packPrice) > AVERAGE_DUST_VALUE_PER_PACK : false
 
   // Count cards by rarity in the pool
-  const rarityCounts = cardPool.reduce((acc, card) => {
-    card.rarities.forEach((rarity) => {
-      acc[rarity] = (acc[rarity] || 0) + 1
-    })
-    return acc
-  }, {} as Record<string, number>)
+  const rarityCounts = cardPool.reduce(
+    (acc, card) => {
+      card.rarities.forEach((rarity) => {
+        acc[rarity] = (acc[rarity] || 0) + 1
+      })
+      return acc
+    },
+    {} as Record<string, number>,
+  )
 
   useEffect(() => {
     const fetchData = async () => {
@@ -213,7 +194,9 @@ export default function AdminPage() {
           const results = await res.json()
           // Filter out cards that are already in the pool
           const poolCardCodes = new Set(cardPool.map((c) => c.code))
-          const filteredResults = results.filter((card: { code: number; name: string }) => !poolCardCodes.has(card.code))
+          const filteredResults = results.filter(
+            (card: { code: number; name: string }) => !poolCardCodes.has(card.code),
+          )
           setCardSearchResults(filteredResults)
           // If we got a full page, there might be more results
           setHasMoreResults(results.length === searchResultsLimit)
@@ -359,12 +342,6 @@ export default function AdminPage() {
     }
   }
 
-  const handleUpdateSlotRatio = (index: number, field: "chance" | "dv", value: number) => {
-    const updated = [...slotRatios]
-    updated[index] = { ...updated[index], [field]: value }
-    setSlotRatios(updated)
-  }
-
   // Create or update pack
   const handleCreatePack = async () => {
     if (!packName.trim()) {
@@ -385,19 +362,10 @@ export default function AdminPage() {
       return
     }
 
-    if (!slotRatiosValid) {
-      toast({
-        title: "Invalid slot ratios",
-        description: `Slot ratios must add up to exactly 1. Current total: ${slotRatioTotal.toFixed(4)}`,
-        variant: "destructive",
-      })
-      return
-    }
-
     if (!priceValid) {
       toast({
         title: "Invalid price",
-        description: `Price must be greater than average dust value (${averageDustValue.toFixed(2)})`,
+        description: `Price must be greater than average dust value (${AVERAGE_DUST_VALUE_PER_PACK.toFixed(2)})`,
         variant: "destructive",
       })
       return
@@ -412,8 +380,7 @@ export default function AdminPage() {
       return
     }
 
-    // Validate that each rarity has at least one card
-    for (const slotRatio of slotRatios) {
+    for (const slotRatio of SLOT_RATIOS) {
       const hasCard = cardPool.some((card) => card.rarities.includes(slotRatio.rarity))
       if (!hasCard) {
         toast({
@@ -436,7 +403,6 @@ export default function AdminPage() {
           description: packDescription,
           price: Number.parseInt(packPrice),
           cardPool: cardPool.map((card) => ({ code: card.code, rarities: card.rarities })),
-          slotRatios,
         }),
       })
       const data = await res.json()
@@ -447,7 +413,9 @@ export default function AdminPage() {
         })
         handleNewPack()
         // Refresh pack list
-        fetch("/api/admin/packs").then(res => res.json()).then(data => setPacks(Array.isArray(data) ? data : []))
+        fetch("/api/admin/packs")
+          .then((res) => res.json())
+          .then((data) => setPacks(Array.isArray(data) ? data : []))
       } else {
         toast({
           title: "Error",
@@ -592,7 +560,9 @@ export default function AdminPage() {
                       <CardDescription>Basic information about the pack</CardDescription>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="secondary" size="sm" onClick={handleNewPack} disabled={!selectedPackId}>New</Button>
+                      <Button variant="secondary" size="sm" onClick={handleNewPack} disabled={!selectedPackId}>
+                        New
+                      </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -600,7 +570,7 @@ export default function AdminPage() {
                   <div>
                     <Label>Existing Packs</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {packs.map(pack => (
+                      {packs.map((pack) => (
                         <Button
                           key={pack._id}
                           variant={selectedPackId === pack._id ? "default" : "outline"}
@@ -641,12 +611,12 @@ export default function AdminPage() {
                     />
                     {packPrice && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        Average dust value: {averageDustValue.toFixed(2)} credits
+                        Average dust value: {AVERAGE_DUST_VALUE_PER_PACK.toFixed(2)} credits
                         {priceValid ? (
                           <span className="text-green-600 ml-2">✓ Valid</span>
                         ) : (
                           <span className="text-red-600 ml-2">
-                            ✗ Price must be greater than {averageDustValue.toFixed(2)}
+                            ✗ Price must be greater than {AVERAGE_DUST_VALUE_PER_PACK.toFixed(2)}
                           </span>
                         )}
                       </p>
@@ -657,75 +627,49 @@ export default function AdminPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Slot Ratios</CardTitle>
-                  <CardDescription>
-                    Configure the rarity distribution for pack openings. Total must equal exactly 1.0
-                  </CardDescription>
+                  <CardTitle>Standardized Rarity Distribution</CardTitle>
+                  <CardDescription>All packs use the same rarity distribution (8 cards per pack)</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {slotRatios.map((ratio, index) => (
-                    <div key={ratio.rarity} className="grid grid-cols-4 gap-4 items-end">
-                      <div>
-                        <Label>{ratio.rarity}</Label>
-                        <Input value={ratio.rarity} disabled className="bg-muted" />
+                <CardContent>
+                  <div className="space-y-2">
+                    {SLOT_RATIOS.map((ratio) => (
+                      <div key={ratio.rarity} className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{ratio.rarity}</span>
+                        <div className="flex gap-4 text-muted-foreground">
+                          <span>{(ratio.chance * 100).toFixed(1)}% chance</span>
+                          <span>{ratio.dv} dust value</span>
+                          <span>{(ratio.chance * ratio.dv * 8).toFixed(2)} expected credits/pack</span>
+                        </div>
                       </div>
-                      <div>
-                        <Label>Chance (0-1)</Label>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          min="0"
-                          max="1"
-                          value={ratio.chance}
-                          onChange={(e) =>
-                            handleUpdateSlotRatio(index, "chance", parseFloat(e.target.value) || 0)
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label>Dust Value</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={ratio.dv}
-                          onChange={(e) =>
-                            handleUpdateSlotRatio(index, "dv", Number.parseInt(e.target.value) || 1)
-                          }
-                        />
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Expected: {(ratio.chance * ratio.dv * 8).toFixed(2)} credits
-                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="flex items-center justify-between font-medium">
+                      <span>Average Dust Value per Pack:</span>
+                      <span className="text-primary">{AVERAGE_DUST_VALUE_PER_PACK.toFixed(2)} credits</span>
                     </div>
-                  ))}
-                  <div className="pt-2 border-t">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">Total:</span>
-                      <span className={slotRatiosValid ? "text-green-600" : "text-red-600"}>
-                        {slotRatioTotal.toFixed(4)}
-                        {slotRatiosValid ? " ✓" : " ✗"}
-                      </span>
-                    </div>
-                    {!slotRatiosValid && (
-                      <Alert className="mt-2">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          Slot ratios must add up to exactly 1.0. Current total: {slotRatioTotal.toFixed(4)}
-                        </AlertDescription>
-                      </Alert>
-                    )}
                   </div>
                 </CardContent>
               </Card>
+
               {cardPool.length > 0 && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Card Pool Rarity Distribution</CardTitle>
-                    <CardDescription>Current distribution of cards by rarity in the pool</CardDescription>
+                    <CardTitle>Card Pool for {selectedPackId ? "Selected Pack" : "New Pack"}</CardTitle>
+                    <CardDescription>
+                      {SLOT_RATIOS.map((ratio) => {
+                        const count = rarityCounts[ratio.rarity] || 0
+                        return (
+                          <Badge key={ratio.rarity} variant={count > 0 ? "default" : "secondary"} className="mr-2">
+                            {ratio.rarity}: {count}
+                          </Badge>
+                        )
+                      })}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                      {slotRatios.map((ratio) => {
+                      {SLOT_RATIOS.map((ratio) => {
                         const count = rarityCounts[ratio.rarity] || 0
                         return (
                           <div
@@ -735,9 +679,7 @@ export default function AdminPage() {
                             <div className="text-sm font-medium text-muted-foreground mb-1">{ratio.rarity}</div>
                             <div className="text-2xl font-bold">{count}</div>
                             <div className="text-xs text-muted-foreground mt-1">
-                              {cardPool.length > 0
-                                ? `${((count / cardPool.length) * 100).toFixed(1)}%`
-                                : "0%"}
+                              {cardPool.length > 0 ? `${((count / cardPool.length) * 100).toFixed(1)}%` : "0%"}
                             </div>
                           </div>
                         )
@@ -783,10 +725,7 @@ export default function AdminPage() {
                         {isSearchOpen && (cardSearchQuery.length >= 2 || cardSearchResults.length > 0) && (
                           <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-[400px] overflow-hidden flex flex-col">
                             <Command shouldFilter={false}>
-                              <div
-                                ref={resultsListRef}
-                                className="max-h-[400px] overflow-y-auto"
-                              >
+                              <div ref={resultsListRef} className="max-h-[400px] overflow-y-auto">
                                 <CommandList>
                                   {cardSearchResults.length === 0 ? (
                                     <CommandEmpty>
@@ -874,10 +813,7 @@ export default function AdminPage() {
                       <Label>Cards in Pool ({cardPool.length})</Label>
                       <div className="space-y-2 max-h-64 overflow-y-auto">
                         {cardPool.map((card, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-2 border rounded-md"
-                          >
+                          <div key={index} className="flex items-center justify-between p-2 border rounded-md">
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <div className="flex flex-col min-w-0 flex-1">
                                 <span className="font-medium truncate">{card.name}</span>
@@ -891,11 +827,7 @@ export default function AdminPage() {
                                 ))}
                               </div>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveCardFromPool(index)}
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => handleRemoveCardFromPool(index)}>
                               <X className="h-4 w-4" />
                             </Button>
                           </div>
@@ -906,16 +838,19 @@ export default function AdminPage() {
                 </CardContent>
               </Card>
 
-              <div className="flex gap-2">
-                <Button className="w-full" size="lg" onClick={handleCreatePack} disabled={!slotRatiosValid || !priceValid || cardPool.length === 0}>
-                  {selectedPackId ? "Update Pack" : "Create Pack"}
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleCreatePack}
+                disabled={!priceValid || cardPool.length === 0}
+              >
+                {selectedPackId ? "Update Pack" : "Create Pack"}
+              </Button>
+              {selectedPackId && (
+                <Button className="w-full" size="lg" variant="destructive" onClick={handleDeletePack}>
+                  Delete Pack
                 </Button>
-                {selectedPackId && (
-                  <Button className="w-full" size="lg" variant="destructive" onClick={handleDeletePack}>
-                    Delete Pack
-                  </Button>
-                )}
-              </div>
+              )}
             </div>
           </TabsContent>
 

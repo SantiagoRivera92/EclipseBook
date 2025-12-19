@@ -1,4 +1,4 @@
-// Validate that user owns all cards in deck
+// Validate that user owns all cards in deck (streamlined collection system)
 import { type NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getDatabase } from "@/lib/db"
@@ -25,38 +25,60 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: "Deck not found" }, { status: 404 })
     }
 
+    const userCollection = await collectionCollection.findOne({ userId: user.userId })
+
+    if (!userCollection) {
+      return NextResponse.json({ error: "Collection not found" }, { status: 404 })
+    }
+
     const missingCards: Array<{ cardCode: number; needed: number; owned: number }> = []
 
     // Check main deck
     for (const card of deck.mainDeck) {
-      const owned = await collectionCollection.countDocuments({
-        userId: user.userId,
-        cardCode: card.cardCode,
-        forSale: false,
-      })
+      const cardEntry = userCollection.collection?.find((entry: any) => entry.password === card.cardCode)
 
-      if (owned < card.count) {
+      if (!cardEntry) {
         missingCards.push({
           cardCode: card.cardCode,
           needed: card.count,
-          owned,
+          owned: 0,
+        })
+        continue
+      }
+
+      // Count total copies across all rarities
+      const totalOwned = Object.values(cardEntry.copies).reduce((sum: number, count: any) => sum + count, 0)
+
+      if (totalOwned < card.count) {
+        missingCards.push({
+          cardCode: card.cardCode,
+          needed: card.count,
+          owned: totalOwned,
         })
       }
     }
 
     // Check extra deck
     for (const card of deck.extraDeck) {
-      const owned = await collectionCollection.countDocuments({
-        userId: user.userId,
-        cardCode: card.cardCode,
-        forSale: false,
-      })
+      const cardEntry = userCollection.collection?.find((entry: any) => entry.password === card.cardCode)
 
-      if (owned < card.count) {
+      if (!cardEntry) {
         missingCards.push({
           cardCode: card.cardCode,
           needed: card.count,
-          owned,
+          owned: 0,
+        })
+        continue
+      }
+
+      // Count total copies across all rarities
+      const totalOwned = Object.values(cardEntry.copies).reduce((sum: number, count: any) => sum + count, 0)
+
+      if (totalOwned < card.count) {
+        missingCards.push({
+          cardCode: card.cardCode,
+          needed: card.count,
+          owned: totalOwned,
         })
       }
     }

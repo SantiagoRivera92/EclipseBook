@@ -1,4 +1,4 @@
-// Buy a card from marketplace
+// Buy cards from marketplace (streamlined for quantity-based trading)
 import { type NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getDatabase } from "@/lib/db"
@@ -12,10 +12,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { listingId } = await request.json()
+    const { listingId, quantity } = await request.json()
 
-    if (!ObjectId.isValid(listingId)) {
-      return NextResponse.json({ error: "Invalid listing ID" }, { status: 400 })
+    if (!ObjectId.isValid(listingId) || !quantity || quantity <= 0) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 })
     }
 
     const db = await getDatabase()
@@ -41,65 +41,130 @@ export async function POST(request: NextRequest) {
           throw new Error("Cannot buy your own listing")
         }
 
-        const buyer = await usersCollection.findOne({ _id: new ObjectId(user.userId) }, { session })
+        const availableQuantity = listing.quantity - (listing.soldQuantity || 0)
 
-        if (!buyer || buyer.credits < listing.price) {
+        if (availableQuantity < quantity) {
+          throw new Error(`Only ${availableQuantity} copies available`)
+        }
+
+        const totalPrice = listing.price * quantity
+
+        const buyer = await usersCollection.findOne({ discordId: user.userId }, { session })
+
+        if (!buyer || buyer.credits < totalPrice) {
           throw new Error("Insufficient credits")
         }
 
-        const seller = await usersCollection.findOne({ _id: new ObjectId(listing.sellerId) }, { session })
+        const seller = await usersCollection.findOne({ discordId: listing.sellerId }, { session })
 
         if (!seller) {
           throw new Error("Seller not found")
-        }
-
-        // Get the card and verify it exists and belongs to seller
-        const card = await collectionCollection.findOne({ _id: listing.cardId, userId: listing.sellerId }, { session })
-
-        if (!card) {
-          throw new Error("Card not found or seller no longer owns it")
         }
 
         const now = new Date()
 
         // Transfer credits
         await usersCollection.updateOne(
-          { _id: new ObjectId(user.userId) },
-          { $inc: { credits: -listing.price }, $set: { updatedAt: now } },
+          { discordId: user.userId },
+          { $inc: { credits: -totalPrice }, $set: { updatedAt: now } },
           { session },
         )
 
         await usersCollection.updateOne(
-          { _id: new ObjectId(listing.sellerId) },
-          { $inc: { credits: listing.price }, $set: { updatedAt: now } },
+          { discordId: listing.sellerId },
+          { $inc: { credits: totalPrice }, $set: { updatedAt: now } },
           { session },
         )
 
-        // Transfer card ownership
-        await collectionCollection.updateOne(
-          { _id: listing.cardId },
-          {
-            $set: {
+        // Add cards to buyer's collection
+        const buyerCollection = await collectionCollection.findOne({ userId: user.userId }, { session })
+
+        if (!buyerCollection) {
+          // Create new collection
+          await collectionCollection.insertOne(
+            {
               userId: user.userId,
-              forSale: false,
+              collection: [
+                {
+                  password: listing.cardCode,
+                  copies: {
+                    Common: listing.rarity === "Common" ? quantity : 0,
+                    Rare: listing.rarity === "Rare" ? quantity : 0,
+                    "Super Rare": listing.rarity === "Super Rare" ? quantity : 0,
+                    "Ultra Rare": listing.rarity === "Ultra Rare" ? quantity : 0,
+                    "Secret Rare": listing.rarity === "Secret Rare" ? quantity : 0,
+                    "Ultimate Rare": listing.rarity === "Ultimate Rare" ? quantity : 0,
+                  },
+                },
+              ],
+              createdAt: now,
               updatedAt: now,
             },
-            $unset: { listingId: "" },
+            { session },
+          )
+        } else {
+          const cardEntry = buyerCollection.collection?.find((entry: any) => entry.password === listing.cardCode)
+
+          if (!cardEntry) {
+            // Add new card entry
+            await collectionCollection.updateOne(
+              { userId: user.userId },
+              {
+                $push: {
+                  collection: {
+                    password: listing.cardCode,
+                    copies: {
+                      Common: listing.rarity === "Common" ? quantity : 0,
+                      Rare: listing.rarity === "Rare" ? quantity : 0,
+                      "Super Rare": listing.rarity === "Super Rare" ? quantity : 0,
+                      "Ultra Rare": listing.rarity === "Ultra Rare" ? quantity : 0,
+                      "Secret Rare": listing.rarity === "Secret Rare" ? quantity : 0,
+                      "Ultimate Rare": listing.rarity === "Ultimate Rare" ? quantity : 0,
+                    },
+                  },
+                },
+                $set: { updatedAt: now },
+              },
+              { session },
+            )
+          } else {
+            // Increment existing entry
+            await collectionCollection.updateOne(
+              { userId: user.userId, "collection.password": listing.cardCode },
+              {
+                $inc: { [`collection.$.copies.${listing.rarity}`]: quantity },
+                $set: { updatedAt: now },
+              },
+              { session },
+            )
+          }
+        }
+
+        // Update listing
+        const newSoldQuantity = (listing.soldQuantity || 0) + quantity
+        const allSold = newSoldQuantity >= listing.quantity
+
+        await listingsCollection.updateOne(
+          { _id: new ObjectId(listingId) },
+          {
+            $set: {
+              soldQuantity: newSoldQuantity,
+              sold: allSold,
+              ...(allSold && { soldAt: now }),
+            },
           },
           { session },
         )
 
-        // Mark listing as sold
-        await listingsCollection.updateOne(
-          { _id: new ObjectId(listingId) },
-          { $set: { sold: true, soldAt: now } },
-          { session },
-        )
+        // If listing is fully sold or expires, return unsold cards to seller
+        if (allSold) {
+          // All sold, no need to return anything
+        }
       })
 
       return NextResponse.json({
         success: true,
-        message: "Card purchased successfully",
+        message: `Purchased ${quantity} card(s) successfully`,
       })
     } finally {
       await session.endSession()

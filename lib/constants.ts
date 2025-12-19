@@ -27,3 +27,25 @@ export const TOURNAMENT_PRIZE_DISTRIBUTION = {
 export const CARD_COPY_LIMIT = 3
 export const MARKETPLACE_LISTING_EXPIRY = 7 * 24 * 60 * 60 * 1000 // 7 days in ms
 export const MARKETPLACE_AUCTION_EXPIRY = 3 * 24 * 60 * 60 * 1000 // 3 days in ms
+
+export const RARITY_DUST_VALUES: Record<string, number> = {
+  Common: 1,
+  Rare: 3,
+  "Super Rare": 6,
+  "Ultra Rare": 8,
+  "Secret Rare": 30,
+  "Ultimate Rare": 120,
+}
+
+// Standardized slot ratios for all packs (8 cards per pack)
+export const SLOT_RATIOS = [
+  { rarity: "Common", chance: 0.6, dv: 1 },
+  { rarity: "Rare", chance: 0.2, dv: 3 },
+  { rarity: "Super Rare", chance: 0.1, dv: 6 },
+  { rarity: "Ultra Rare", chance: 0.075, dv: 8 },
+  { rarity: "Secret Rare", chance: 0.02, dv: 30 },
+  { rarity: "Ultimate Rare", chance: 0.005, dv: 120 },
+]
+
+// Calculate average dust value per pack (8 cards)
+export const AVERAGE_DUST_VALUE_PER_PACK = SLOT_RATIOS.reduce((sum, r) => sum + r.chance * r.dv, 0) * 8

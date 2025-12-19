@@ -1,10 +1,9 @@
-// Marketplace listings API
+// Marketplace listings API (streamlined for quantity-based trading)
 import { type NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getDatabase } from "@/lib/db"
-import { ObjectId } from "mongodb"
 import { MARKETPLACE_LISTING_EXPIRY } from "@/lib/constants"
-import { MarketplaceListingSchema } from "@/lib/schemas/validation"
+import { getCardByCode } from "@/lib/cards-db"
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +19,17 @@ export async function GET(request: NextRequest) {
 
     const listings = await listingsCollection.find({ type: "listing", sold: false }).sort({ createdAt: -1 }).toArray()
 
-    return NextResponse.json(listings)
+    // Enrich listings with card names and images
+    const enrichedListings = listings.map((listing) => {
+      const cardInfo = getCardByCode(listing.cardCode)
+      return {
+        ...listing,
+        cardName: cardInfo ? cardInfo.name : "Unknown Card",
+        imageUrl: `https://images.ygoprodeck.com/images/cards/${listing.cardCode}.jpg`,
+      }
+    })
+
+    return NextResponse.json(enrichedListings)
   } catch (error) {
     console.error("Get listings error:", error instanceof Error ? error.message : "Unknown error")
     return NextResponse.json({ error: "Failed to fetch listings" }, { status: 500 })
@@ -36,33 +45,36 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
+    const { cardCode, rarity, quantity, price } = body
 
-    const validation = MarketplaceListingSchema.safeParse(body)
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          error: "Invalid input",
-          details: validation.error.errors,
-        },
-        { status: 400 },
-      )
+    if (!cardCode || !rarity || !quantity || !price || quantity <= 0 || price <= 0) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 })
     }
-
-    const { cardId, price } = validation.data
 
     const db = await getDatabase()
     const collectionCollection = db.collection("collection")
     const listingsCollection = db.collection("marketplace")
 
-    // Verify card belongs to user
-    const card = await collectionCollection.findOne({ _id: new ObjectId(cardId), userId: user.userId })
+    // Verify user owns enough copies
+    const userCollection = await collectionCollection.findOne({ userId: user.userId })
 
-    if (!card) {
-      return NextResponse.json({ error: "Card not found or you don't own it" }, { status: 404 })
+    if (!userCollection) {
+      return NextResponse.json({ error: "Collection not found" }, { status: 404 })
     }
 
-    if (card.forSale) {
-      return NextResponse.json({ error: "Card is already listed for sale" }, { status: 400 })
+    const cardEntry = userCollection.collection?.find((entry: any) => entry.password === cardCode)
+
+    if (!cardEntry) {
+      return NextResponse.json({ error: "Card not found in collection" }, { status: 404 })
+    }
+
+    const ownedCopies = cardEntry.copies[rarity] || 0
+
+    if (ownedCopies < quantity) {
+      return NextResponse.json(
+        { error: `Not enough copies. You have ${ownedCopies} but tried to list ${quantity}` },
+        { status: 400 },
+      )
     }
 
     const now = new Date()
@@ -70,24 +82,32 @@ export async function POST(request: NextRequest) {
 
     // Create listing
     const result = await listingsCollection.insertOne({
-      cardId: new ObjectId(cardId),
+      cardCode,
+      rarity,
+      quantity,
       sellerId: user.userId,
       price,
       type: "listing",
       expiresAt,
       sold: false,
+      soldQuantity: 0,
       createdAt: now,
     })
 
-    // Mark card as for sale
+    // Decrement user's collection (reserve the cards for sale)
     await collectionCollection.updateOne(
-      { _id: new ObjectId(cardId) },
-      { $set: { forSale: true, listingId: result.insertedId } },
+      { userId: user.userId, "collection.password": cardCode },
+      {
+        $inc: { [`collection.$.copies.${rarity}`]: -quantity },
+        $set: { updatedAt: now },
+      },
     )
 
     return NextResponse.json({
       _id: result.insertedId,
-      cardId,
+      cardCode,
+      rarity,
+      quantity,
       price,
       expiresAt,
     })

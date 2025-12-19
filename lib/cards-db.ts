@@ -99,4 +99,3 @@ export function getCardByCode(code: number): Card | null {
   const result = stmt.get(code) as { code: number; name: string } | undefined
   return result || null
 }
-

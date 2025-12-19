@@ -165,13 +165,15 @@ export default function PacksPage() {
 
       if (res.ok) {
         const data = await res.json()
+        console.log(data)
         let cards: PulledCard[] = data.cards
         if (cards.length > 0 && !('packIndex' in cards[0])) {
           const packSize = packs.find(p => p._id === packId)?.cardCount || 8
           cards = cards.map((card, i) => ({ ...card, packIndex: Math.floor(i / packSize) }))
         }
         setPulledCards(cards)
-        setUser({ ...user, credits: data.newCredits })
+        let credits = user.credits - data.creditsCost
+        setUser({ ...user, credits: credits })
         setCurrentPack(0)
         setShowResults(true)
       }
@@ -179,38 +181,6 @@ export default function PacksPage() {
       console.error("Failed to open pack:", error)
     } finally {
       setOpening(false)
-    }
-  }
-
-  // Open dust dialog for a group
-  const openDustDialog = (group: GroupedCard) => {
-    setDustDialog({ group, open: true })
-    setTimeout(() => {
-      dustInputRef.current?.focus()
-    }, 100)
-  }
-
-  // Dust multiple cards from a group
-  const handleDustGroup = async (group: GroupedCard, quantity: number) => {
-    setDusting(true)
-    try {
-      const ids = group.ids.slice(0, quantity)
-      const res = await fetch("/api/collection/dust", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cardIds: ids }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setUser((prev: any) => ({ ...prev, credits: (prev.credits || 0) + (group.dustValue || 0) * quantity }))
-        // Remove dusted cards from pulledCards
-        setPulledCards(prev => prev.filter(card => !ids.includes(card._id!)))
-        setDustDialog({ group: null, open: false })
-      }
-    } catch (error) {
-      // Optionally show error
-    } finally {
-      setDusting(false)
     }
   }
 
@@ -365,8 +335,6 @@ export default function PacksPage() {
                 </div>
               )
             }
-            // else, show paginated view as before
-            // ...existing code...
             // Find max packIndex
             const maxPack = pulledCards.reduce((max, c) => c.packIndex !== undefined && c.packIndex > max ? c.packIndex : max, 0)
             if (maxPack > 0) {
@@ -421,16 +389,6 @@ export default function PacksPage() {
                                 <span className="block text-xs mt-1">x{group.count}</span>
                               </CardContent>
                             </Card>
-                            {group.canDust && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full bg-transparent"
-                                onClick={() => openDustDialog(group)}
-                              >
-                                Dust for {group.dustValue} × {group.count}
-                              </Button>
-                            )}
                           </div>
                         ))}
                     </div>
@@ -472,16 +430,6 @@ export default function PacksPage() {
                                 <span className="block text-xs mt-1">x{group.count}</span>
                               </CardContent>
                             </Card>
-                            {group.canDust && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full bg-transparent"
-                                onClick={() => openDustDialog(group)}
-                              >
-                                Dust for {group.dustValue} × {group.count}
-                              </Button>
-                            )}
                           </div>
                         ))}
                     </div>
@@ -491,43 +439,6 @@ export default function PacksPage() {
             }
             return null
           })()}
-
-          {/* Dust quantity dialog (unchanged) */}
-          <Dialog open={dustDialog.open} onOpenChange={open => setDustDialog(d => ({ ...d, open }))}>
-            <DialogContent className="max-w-xs">
-              <DialogHeader>
-                <DialogTitle>Dust Cards</DialogTitle>
-                <DialogDescription>
-                  How many <b>{dustDialog.group?.name}</b> ({dustDialog.group?.rarity}) would you like to dust?
-                </DialogDescription>
-              </DialogHeader>
-              {dustDialog.group && (
-                <form
-                  onSubmit={e => {
-                    e.preventDefault()
-                    const qty = Number(dustInputRef.current?.value || 1)
-                    if (dustDialog.group && qty > 0 && qty <= (dustDialog.group.count || 1)) {
-                      handleDustGroup(dustDialog.group, qty)
-                    }
-                  }}
-                  className="flex flex-col gap-4"
-                >
-                  <input
-                    ref={dustInputRef}
-                    type="number"
-                    min={1}
-                    max={dustDialog.group.count}
-                    defaultValue={dustDialog.group.count}
-                    className="border rounded px-2 py-1 text-center text-sm"
-                    disabled={dusting}
-                  />
-                  <Button type="submit" disabled={dusting}>
-                    {dusting ? "Dusting..." : `Dust ${dustDialog.group.dustValue} × N`}
-                  </Button>
-                </form>
-              )}
-            </DialogContent>
-          </Dialog>
         </DialogContent>
       </Dialog>
     </div>

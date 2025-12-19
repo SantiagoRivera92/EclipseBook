@@ -49,6 +49,7 @@ export function Navbar() {
     { href: "/decks", label: "Decks" },
     { href: "/marketplace", label: "Marketplace" },
     { href: "/play", label: "Play" },
+    { href: "/help", label: "Help" },
   ]
 
   if (!user) return null

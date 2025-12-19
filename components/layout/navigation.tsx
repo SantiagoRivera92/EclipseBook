@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Home, Package, Layers, Trophy, ShoppingCart, User, LogOut, Shield } from "lucide-react"
+import { User, LogOut, Shield } from "lucide-react"
 
 interface NavigationProps {
   user: {
@@ -28,11 +28,11 @@ export function Navigation({ user }: NavigationProps) {
   const pathname = usePathname()
 
   const navItems = [
-    { href: "/dashboard", label: "Dashboard", icon: Home },
-    { href: "/packs", label: "Packs", icon: Package },
-    { href: "/decks", label: "Decks", icon: Layers },
-    { href: "/play", label: "Play", icon: Trophy },
-    { href: "/marketplace", label: "Market", icon: ShoppingCart },
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/packs", label: "Packs" },
+    { href: "/decks", label: "Decks" },
+    { href: "/play", label: "Play" },
+    { href: "/marketplace", label: "Market" },
   ]
 
   return (
@@ -45,12 +45,10 @@ export function Navigation({ user }: NavigationProps) {
             </Link>
             <div className="hidden md:flex gap-1">
               {navItems.map((item) => {
-                const Icon = item.icon
                 const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
                 return (
                   <Link key={item.href} href={item.href}>
                     <Button variant={isActive ? "secondary" : "ghost"} size="sm" className="gap-2">
-                      <Icon className="h-4 w-4" />
                       {item.label}
                     </Button>
                   </Link>

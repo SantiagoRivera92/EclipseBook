@@ -1,8 +1,8 @@
-// Dust (convert) cards for credits - optional and unrestricted
+// Dust (convert) cards for credits - streamlined version
 import { type NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getDatabase } from "@/lib/db"
-import { ObjectId } from "mongodb"
+import { RARITY_DUST_VALUES } from "@/lib/constants"
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser()
@@ -11,56 +11,84 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-
-  console.log(user);
-  
   try {
-    const { cardIds } = await request.json()
+    const { cardCode, rarity, quantity } = await request.json()
 
-    if (!Array.isArray(cardIds) || cardIds.length === 0) {
-      return NextResponse.json({ error: "Invalid card IDs" }, { status: 400 })
+    if (!cardCode || !rarity || !quantity || quantity <= 0) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 })
     }
 
     const db = await getDatabase()
     const collectionCollection = db.collection("collection")
     const usersCollection = db.collection("users")
 
-    let totalDustValue = 0
+    const userCollection = await collectionCollection.findOne({ userId: user.userId })
 
-    for (const cardId of cardIds) {
-      const card = await collectionCollection.findOne({ _id: new ObjectId(cardId) })
-
-      if (!card || card.userId !== user.userId) {
-        continue
-      }
-
-      totalDustValue += card.dustValue
-      var maxTries = 3
-      // Remove the card from collection
-      let deleteResult = await collectionCollection.deleteOne({ _id: new ObjectId(cardId) })
-      while (deleteResult.deletedCount === 0 && maxTries > 0) {
-        // Wait 500ms and try again
-        console.log(`Retrying deletion for cardId: ${cardId} after 500ms`)
-        await new Promise(res => setTimeout(res, 500))
-        deleteResult = await collectionCollection.deleteOne({ _id: new ObjectId(cardId) })
-        maxTries--
-      }
+    if (!userCollection) {
+      return NextResponse.json({ error: "Collection not found" }, { status: 404 })
     }
 
-    if (totalDustValue > 0) {
-      // Give user credits
-      await usersCollection.updateOne(
-        { discordId: user.userId },
-        {
-          $inc: { credits: totalDustValue },
-          $set: { updatedAt: new Date() },
-        },
+    // Find the card in collection
+    const cardEntry = userCollection.collection?.find((entry: any) => entry.password === cardCode)
+
+    if (!cardEntry) {
+      return NextResponse.json({ error: "Card not found in collection" }, { status: 404 })
+    }
+
+    // Check if user has enough copies
+    const currentCopies = cardEntry.copies[rarity] || 0
+    if (currentCopies < quantity) {
+      return NextResponse.json(
+        { error: `Not enough copies. You have ${currentCopies} but tried to dust ${quantity}` },
+        { status: 400 },
       )
+    }
+
+    // Calculate dust value
+    const dustValuePerCard = RARITY_DUST_VALUES[rarity] || 5
+    const totalDustValue = dustValuePerCard * quantity
+
+    const now = new Date()
+
+    // Decrement the card count
+    await collectionCollection.updateOne(
+      { userId: user.userId, "collection.password": cardCode },
+      {
+        $inc: { [`collection.$.copies.${rarity}`]: -quantity },
+        $set: { updatedAt: now },
+      },
+    )
+
+    // Give user credits
+    await usersCollection.updateOne(
+      { discordId: user.userId },
+      {
+        $inc: { credits: totalDustValue },
+        $set: { updatedAt: now },
+      },
+    )
+
+    // Remove card entry if all copies are 0
+    const updatedCollection = await collectionCollection.findOne({ userId: user.userId })
+    const updatedCardEntry = updatedCollection.collection?.find((entry: any) => entry.password === cardCode)
+
+    if (updatedCardEntry) {
+      const allZero = Object.values(updatedCardEntry.copies).every((count: any) => count === 0)
+      if (allZero) {
+        await collectionCollection.updateOne(
+          { userId: user.userId },
+          {
+            $pull: { collection: { password: cardCode } },
+            $set: { updatedAt: now },
+          },
+        )
+      }
     }
 
     return NextResponse.json({
       success: true,
       creditsEarned: totalDustValue,
+      quantityDusted: quantity,
     })
   } catch (error) {
     console.error("Dust cards error:", error)

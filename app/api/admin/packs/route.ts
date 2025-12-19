@@ -1,4 +1,9 @@
-import { ObjectId } from "mongodb"
+import { type NextRequest, NextResponse } from "next/server"
+import { getCurrentUser } from "@/lib/auth"
+import { getDatabase } from "@/lib/db"
+import { CardPackSchema } from "@/lib/schemas/index"
+import { SLOT_RATIOS, AVERAGE_DUST_VALUE_PER_PACK } from "@/lib/constants"
+
 // Update a pack by _id (slug)
 export async function PUT(request: NextRequest) {
   const user = await getCurrentUser()
@@ -11,20 +16,13 @@ export async function PUT(request: NextRequest) {
     if (!_id) {
       return NextResponse.json({ error: "Missing pack _id" }, { status: 400 })
     }
-    // Validate slot ratios add up to exactly 1
-    if (!validateSlotRatios(updateData.slotRatios)) {
-      const total = updateData.slotRatios.reduce((sum: any, r: { chance: any }) => sum + r.chance, 0)
-      return NextResponse.json(
-        { error: `Slot ratios must add up to exactly 1. Current total: ${total.toFixed(4)}` },
-        { status: 400 },
-      )
-    }
-    // Calculate average dust value
-    const averageDustValue = updateData.slotRatios.reduce((sum: number, r: { chance: number; dv: number }) => sum + r.chance * r.dv, 0) * 8
-    if (updateData.price <= averageDustValue) {
+
+    const standardizedSlotRatios = SLOT_RATIOS
+
+    if (updateData.price <= AVERAGE_DUST_VALUE_PER_PACK) {
       return NextResponse.json(
         {
-          error: `Pack price (${updateData.price}) must be greater than average dust value (${averageDustValue.toFixed(2)})`,
+          error: `Pack price (${updateData.price}) must be greater than average dust value (${AVERAGE_DUST_VALUE_PER_PACK.toFixed(2)})`,
         },
         { status: 400 },
       )
@@ -41,7 +39,7 @@ export async function PUT(request: NextRequest) {
         )
       }
       for (const rarity of card.rarities) {
-        if (!updateData.slotRatios.some((sr: any) => sr.rarity === rarity)) {
+        if (!standardizedSlotRatios.some((sr) => sr.rarity === rarity)) {
           return NextResponse.json(
             { error: `Card ${card.code} has rarity "${rarity}" which is not in slot ratios` },
             { status: 400 },
@@ -49,7 +47,7 @@ export async function PUT(request: NextRequest) {
         }
       }
     }
-    for (const slotRatio of updateData.slotRatios) {
+    for (const slotRatio of standardizedSlotRatios) {
       const hasCard = updateData.cardPool.some((card: any) => card.rarities.includes(slotRatio.rarity))
       if (!hasCard) {
         return NextResponse.json(
@@ -59,7 +57,7 @@ export async function PUT(request: NextRequest) {
       }
     }
     // Validate with schema
-    const packData = { ...updateData, _id, averageDustValue }
+    const packData = { ...updateData, _id, averageDustValue: AVERAGE_DUST_VALUE_PER_PACK }
     const validation = CardPackSchema.safeParse(packData)
     if (!validation.success) {
       return NextResponse.json(
@@ -106,12 +104,8 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Failed to delete pack" }, { status: 500 })
   }
 }
-// Admin endpoint to create card packs
-import { type NextRequest, NextResponse } from "next/server"
-import { getCurrentUser } from "@/lib/auth"
-import { getDatabase } from "@/lib/db"
-import { CardPackSchema, validateSlotRatios } from "@/lib/schemas/index"
 
+// Admin endpoint to create card packs
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser()
 
@@ -122,17 +116,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Validate slot ratios add up to exactly 1
-    if (!validateSlotRatios(body.slotRatios)) {
-      const total = body.slotRatios.reduce((sum: number, r: any) => sum + r.chance, 0)
-      return NextResponse.json(
-        { error: `Slot ratios must add up to exactly 1. Current total: ${total.toFixed(4)}` },
-        { status: 400 },
-      )
-    }
-
-    // Calculate average dust value
-    const averageDustValue = body.slotRatios.reduce((sum: number, r: any) => sum + r.chance * r.dv, 0) * 8
+    const averageDustValue = AVERAGE_DUST_VALUE_PER_PACK
 
     // Validate price is greater than average dust value
     if (body.price <= averageDustValue) {
@@ -158,9 +142,8 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Validate that all rarities in card pool exist in slot ratios
       for (const rarity of card.rarities) {
-        if (!body.slotRatios.some((sr: any) => sr.rarity === rarity)) {
+        if (!SLOT_RATIOS.some((sr) => sr.rarity === rarity)) {
           return NextResponse.json(
             { error: `Card ${card.code} has rarity "${rarity}" which is not in slot ratios` },
             { status: 400 },
@@ -170,7 +153,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate that each rarity in slot ratios has at least one card
-    for (const slotRatio of body.slotRatios) {
+    for (const slotRatio of SLOT_RATIOS) {
       const hasCard = body.cardPool.some((card: any) => card.rarities.includes(slotRatio.rarity))
       if (!hasCard) {
         return NextResponse.json(
@@ -179,7 +162,6 @@ export async function POST(request: NextRequest) {
         )
       }
     }
-
 
     // Set _id as a slugified version of the pack name
     function slugify(str: string) {
@@ -195,7 +177,7 @@ export async function POST(request: NextRequest) {
       description: body.description || "",
       price: body.price,
       cardPool: body.cardPool,
-      slotRatios: body.slotRatios,
+      slotRatios: SLOT_RATIOS,
       averageDustValue,
       createdAt: new Date(),
     }
@@ -230,6 +212,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Admin endpoint to get all card packs
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser()
 
@@ -249,4 +232,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch packs" }, { status: 500 })
   }
 }
-

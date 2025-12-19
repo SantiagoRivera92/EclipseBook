@@ -25,46 +25,45 @@ export const CardPackSchema = z.object({
       rarities: z.array(z.string()),
     }),
   ),
-  slotRatios: z.array(
-    z.object({
-      rarity: z.string(),
-      chance: z.number().min(0).max(1),
-      dv: z.number().int().positive(),
-    }),
-  ),
   averageDustValue: z.number().positive(),
   createdAt: z.date().optional(),
 })
 
 export type CardPack = z.infer<typeof CardPackSchema>
 
-// Validate that slot ratios add up to 1
-export function validateSlotRatios(ratios: any[]): boolean {
-  const total = ratios.reduce((sum, r) => sum + r.chance, 0)
-  return Math.abs(total - 1) < 0.0001
-}
-
-export const CollectionCardSchema = z.object({
+export const UserCollectionSchema = z.object({
   _id: z.string().optional(),
   userId: z.string(),
-  cardCode: z.number(),
-  rarity: z.string(),
-  dustValue: z.number().int().positive(),
-  packName: z.string(),
-  originalOwner: z.string(),
+  collection: z.array(
+    z.object({
+      password: z.number(), // Card password (code)
+      copies: z.object({
+        Common: z.number().int().min(0).default(0),
+        Rare: z.number().int().min(0).default(0),
+        "Super Rare": z.number().int().min(0).default(0),
+        "Ultra Rare": z.number().int().min(0).default(0),
+        "Secret Rare": z.number().int().min(0).default(0),
+        "Ultimate Rare": z.number().int().min(0).default(0),
+      }),
+    }),
+  ),
+  updatedAt: z.date(),
   createdAt: z.date(),
 })
 
-export type CollectionCard = z.infer<typeof CollectionCardSchema>
+export type UserCollection = z.infer<typeof UserCollectionSchema>
 
 export const MarketplaceListing = z.object({
   _id: z.string().optional(),
-  cardId: z.string(),
+  cardCode: z.number(), // Changed from cardId to cardCode
+  rarity: z.string(), // Added rarity to specify which rarity is being sold
+  quantity: z.number().int().positive().default(1), // Added quantity
   sellerId: z.string(),
-  price: z.number().int().positive(),
+  price: z.number().int().positive(), // Price per card
   type: z.enum(["listing", "auction"]),
   expiresAt: z.date(),
-  auctionBids: z
+  startingBid: z.number().int().positive().optional(), // For auctions
+  bids: z
     .array(
       z.object({
         bidderId: z.string(),
@@ -74,6 +73,8 @@ export const MarketplaceListing = z.object({
     )
     .optional(),
   sold: z.boolean().default(false),
+  soldQuantity: z.number().int().min(0).default(0), // Track how many sold
+  createdAt: z.date().optional(),
 })
 
 export type MarketplaceListing = z.infer<typeof MarketplaceListing>

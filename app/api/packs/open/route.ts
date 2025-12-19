@@ -1,9 +1,9 @@
-// Open a card pack
+// Open a card pack (streamlined collection system)
 import { type NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getDatabase } from "@/lib/db"
-import { ObjectId } from "mongodb"
 import { getCardByCode } from "@/lib/cards-db"
+import { RARITY_DUST_VALUES, SLOT_RATIOS } from "@/lib/constants"
 
 interface CardData {
   code: number
@@ -47,14 +47,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Insufficient credits" }, { status: 400 })
     }
 
-    // Generate cards for each pack
     const pulledCards: CardData[] = []
     for (let packNum = 0; packNum < quantity; packNum++) {
       for (let i = 0; i < 8; i++) {
         const random = Math.random()
         let accumulated = 0
-        let selectedRarity = packDoc.slotRatios[0]
-        for (const ratio of packDoc.slotRatios) {
+        let selectedRarity = SLOT_RATIOS[0]
+        for (const ratio of SLOT_RATIOS) {
           accumulated += ratio.chance
           if (random <= accumulated) {
             selectedRarity = ratio
@@ -85,35 +84,109 @@ export async function POST(request: NextRequest) {
     )
 
     const now = new Date()
-    const insertedCards = []
 
-    for (const card of pulledCards) {
-      // Add to collection - no automatic dusting
-      const result = await collectionCollection.insertOne({
+    // Get or create user's collection
+    let userCollection = await collectionCollection.findOne({ userId: user.userId })
+
+    if (!userCollection) {
+      // Create new collection for user
+      await collectionCollection.insertOne({
         userId: user.userId,
-        cardCode: card.code,
-        rarity: card.rarity,
-        dustValue: packDoc.slotRatios.find((r: any) => r.rarity === card.rarity)?.dv || 1,
-        packName: packDoc.name,
-        originalOwner: user.userId,
+        collection: [],
         createdAt: now,
+        updatedAt: now,
       })
+      userCollection = await collectionCollection.findOne({ userId: user.userId })
+    }
 
-      // Get card name from SQLite
+    // Count the cards by password and rarity
+    const cardCounts = new Map<number, Record<string, number>>()
+    for (const card of pulledCards) {
+      if (!cardCounts.has(card.code)) {
+        cardCounts.set(card.code, {
+          Common: 0,
+          Rare: 0,
+          "Super Rare": 0,
+          "Ultra Rare": 0,
+          "Secret Rare": 0,
+          "Ultimate Rare": 0,
+        })
+      }
+      const counts = cardCounts.get(card.code)!
+      if (card.rarity in counts) {
+        counts[card.rarity as keyof typeof counts]++
+      }
+    }
+
+    // Update the collection with the new cards
+    const updateOperations: any[] = []
+
+    for (const [password, counts] of cardCounts.entries()) {
+      for (const [rarity, count] of Object.entries(counts)) {
+        if (count > 0) {
+          updateOperations.push({
+            updateOne: {
+              filter: { userId: user.userId, "collection.password": password },
+              update: {
+                $inc: { [`collection.$.copies.${rarity}`]: count },
+                $set: { updatedAt: now },
+              },
+            },
+          })
+        }
+      }
+    }
+
+    // For cards not yet in collection, we need to add them
+    for (const [password, counts] of cardCounts.entries()) {
+      const existsInCollection = userCollection.collection?.some((entry: any) => entry.password === password)
+
+      if (!existsInCollection) {
+        await collectionCollection.updateOne(
+          { userId: user.userId },
+          {
+            $push: {
+              collection: {
+                password,
+                copies: counts,
+              },
+            },
+            $set: { updatedAt: now },
+          },
+        )
+      } else {
+        // Update existing entry
+        for (const [rarity, count] of Object.entries(counts)) {
+          if (count > 0) {
+            await collectionCollection.updateOne(
+              { userId: user.userId, "collection.password": password },
+              {
+                $inc: { [`collection.$.copies.${rarity}`]: count },
+                $set: { updatedAt: now },
+              },
+            )
+          }
+        }
+      }
+    }
+
+    // Build response with pulled cards
+    const insertedCards = []
+    for (const card of pulledCards) {
       const cardInfo = getCardByCode(card.code)
-
       insertedCards.push({
-        _id: result.insertedId,
         cardCode: card.code,
         rarity: card.rarity,
         name: cardInfo ? cardInfo.name : "Unknown Card",
         imageUrl: `https://images.ygoprodeck.com/images/cards/${card.code}.jpg`,
+        dustValue: RARITY_DUST_VALUES[card.rarity] || 5,
       })
     }
 
     return NextResponse.json({
       cards: insertedCards,
-      creditsCost: packDoc.price,
+      creditsCost: totalPrice,
+      cardsAdded: pulledCards.length,
     })
   } catch (error) {
     console.error("Open pack error:", error)

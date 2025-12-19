@@ -90,7 +90,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Protect authenticated pages
-  const protectedPaths = ["/dashboard", "/decks", "/collection", "/marketplace", "/packs", "/play", "/profile"]
+  const protectedPaths = ["/dashboard", "/decks", "/collection", "/help", "/packs", "/play", "/profile"]
   if (protectedPaths.some((path) => pathname.startsWith(path))) {
     const token = request.cookies.get("auth-token")?.value
 
@@ -114,9 +114,9 @@ export const config = {
     "/admin/:path*",
     "/decks/:path*",
     "/collection/:path*",
-    "/marketplace/:path*",
     "/packs/:path*",
     "/play/:path*",
     "/profile/:path*",
+    "/help/:path*",
   ],
 }

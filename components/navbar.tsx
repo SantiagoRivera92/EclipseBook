@@ -47,7 +47,6 @@ export function Navbar() {
     { href: "/packs", label: "Packs" },
     { href: "/collection", label: "Collection" },
     { href: "/decks", label: "Decks" },
-    { href: "/marketplace", label: "Marketplace" },
     { href: "/play", label: "Play" },
     { href: "/help", label: "Help" },
   ]

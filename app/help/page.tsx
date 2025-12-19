@@ -71,15 +71,14 @@ export default function HelpPage() {
                   <AccordionContent className="text-muted-foreground">
                     EclipseBook is a competitive card gaming platform where you can collect cards, build decks, and
                     compete against other players. Build your collection through card packs, manage your decks, and
-                    trade cards with other players through the marketplace.
+                    complete your collection!
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="credits">
                   <AccordionTrigger>What are Credits?</AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
-                    Credits are the in-game currency used to purchase card packs, buy cards from the marketplace, and
-                    participate in competitive matches. You can earn credits by claiming your daily bonus, playing
-                    matches, selling cards, or dusting unwanted cards for credits.
+                    Credits are the in-game currency used to purchase card packs and participate in tournaments. 
+                    You can earn credits by claiming your daily bonus, playing matches, selling cards, or dusting unwanted cards for credits.
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="daily">
@@ -176,61 +175,6 @@ export default function HelpPage() {
                     Yes. On the Decks page, each deck has an "Edit" button to modify it and a trash icon to delete it.
                     Deleting a deck only removes the deck list, not the cards from your collection. You can create as
                     many decks as you want.
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </CardContent>
-          </Card>
-
-          {/* Marketplace */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5 text-primary" />
-                Marketplace
-              </CardTitle>
-              <CardDescription>Trading cards with other players</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="marketplace-overview">
-                  <AccordionTrigger>What is the Marketplace?</AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    The Marketplace is where players can buy and sell cards with each other. You can find specific cards
-                    you need for your decks or sell cards you don't want. The marketplace has two sections: Listings
-                    (fixed price) and Auctions (bidding).
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="buy-cards">
-                  <AccordionTrigger>How do I buy cards?</AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    Go to the Marketplace page. In the Listings tab, you can see cards available for immediate purchase
-                    at fixed prices. Click "Buy Now" if you have enough credits. For Auctions, you can place bids that
-                    are higher than the current bid. Use the search bar to find specific cards you're looking for.
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="sell-cards">
-                  <AccordionTrigger>How do I sell my cards?</AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    From your Collection page, click on a card to view your copies by rarity. Each rarity has a "Sell"
-                    button. You can choose to create a fixed-price listing or start an auction. Set your price and
-                    expiration time, and other players will be able to purchase or bid on your card.
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="auctions">
-                  <AccordionTrigger>How do auctions work?</AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    Auctions allow players to bid on cards. Each bid must be higher than the current bid. When the
-                    auction expires, the highest bidder wins the card and it's automatically added to their collection.
-                    If you're outbid, your credits are returned to you.
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="listings-expire">
-                  <AccordionTrigger>What happens when a listing expires?</AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    Both listings and auctions have expiration dates. When a listing expires without being sold, the
-                    card is automatically returned to the seller's collection. For auctions, if there are no bids, the
-                    card is returned. If there are bids, the highest bidder wins.
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -344,17 +288,10 @@ export default function HelpPage() {
                 <AccordionItem value="collection-tips">
                   <AccordionTrigger>How should I manage my collection?</AccordionTrigger>
                   <AccordionContent className="text-muted-foreground">
-                    Keep at least one copy of each card before dusting extras. Focus on collecting cards for specific
-                    deck strategies rather than trying to get everything. Use the marketplace to find specific cards you
-                    need instead of relying only on packs. Dust only cards you're certain you won't use.
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="credit-tips">
-                  <AccordionTrigger>Best ways to earn credits</AccordionTrigger>
-                  <AccordionContent className="text-muted-foreground">
-                    Claim your daily credits every day - this is your most reliable source. Win ladder matches to earn
-                    credits and build win streaks for bonuses. Sell valuable cards you don't need on the marketplace.
-                    Dust extra copies of cards you already have three or more of.
+                    Dust extra cards: You have no use for cards beyond the third copy. 
+                    You can choose to keep the highest rarities, or you can dust them to get more credits.
+                    Packs cost 30 credits and on average, you get 28.80 credits back if you dust what you get in a pack.
+                    Aggressive dusting pays off.
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="deck-tips">

@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     for (const cardEntry of userCollection.collection) {
         var kept = 0;
-        for (const rarity of [...RARITIES]) {
+        for (const rarity of [...RARITIES].reverse()) {
             const currentCopies = cardEntry.copies[rarity] || 0;
             if (kept < 3) {
                 const toKeep = Math.min(3 - kept, currentCopies);

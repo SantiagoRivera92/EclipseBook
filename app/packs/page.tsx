@@ -6,9 +6,9 @@ import { Navigation } from "@/components/layout/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Package, Sparkles } from "lucide-react"
+import { Package } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useRef } from "react"
+import { RARITY_ABBREVIATIONS, RARITY_ICONS } from "@/lib/constants"
 
 interface Pack {
   _id: string
@@ -25,9 +25,7 @@ interface PulledCard {
   name: string
   rarity: string
   imageUrl?: string
-  canDust?: boolean
   dustValue?: number
-  packIndex?: number // for pagination
 }
 
 // Rarity order for sorting
@@ -51,10 +49,6 @@ export default function PacksPage() {
 
   const [pulledCards, setPulledCards] = useState<PulledCard[]>([])
   const [showResults, setShowResults] = useState(false)
-  const [currentPack, setCurrentPack] = useState(0)
-  const [dustDialog, setDustDialog] = useState<{ group: GroupedCard | null, open: boolean }>({ group: null, open: false })
-  const [dusting, setDusting] = useState(false)
-  const dustInputRef = useRef<HTMLInputElement>(null)
   const blockNavRef = useReactRef(false)
 
   interface GroupedCard {
@@ -71,8 +65,8 @@ export default function PacksPage() {
   // Group identical cards (same dustValue, originalOwner, pack, rarity)
   function groupCards(cards: PulledCard[]): GroupedCard[] {
     const map = new Map<string, GroupedCard>()
-    for (const card of cards.filter(c => c.canDust)) {
-      const key = [card.name, card.rarity, card.dustValue, card.packIndex].join("|")
+    for (const card of cards) {
+      const key = [card.name, card.rarity, card.dustValue].join("|")
       if (!map.has(key)) {
         map.set(key, {
           key,
@@ -80,7 +74,6 @@ export default function PacksPage() {
           rarity: card.rarity,
           imageUrl: card.imageUrl,
           dustValue: card.dustValue,
-          canDust: card.canDust,
           count: 1,
           ids: card._id ? [card._id] : [],
         })
@@ -128,22 +121,10 @@ export default function PacksPage() {
     };
     window.addEventListener('beforeunload', beforeUnload);
     blockNavRef.current = true;
-    const handleRouteChange = (url: string) => {
-      if (blockNavRef.current && !window.confirm('Packs are still being opened. Are you sure you want to leave?')) {
-        throw 'Route change aborted.';
-      }
-    };
     window.addEventListener('popstate', beforeUnload);
-    // Next.js router events
-    if (router && router.events) {
-      router.events.on('routeChangeStart', handleRouteChange);
-    }
     return () => {
       window.removeEventListener('beforeunload', beforeUnload);
       window.removeEventListener('popstate', beforeUnload);
-      if (router && router.events) {
-        router.events.off('routeChangeStart', handleRouteChange);
-      }
       blockNavRef.current = false;
     };
   }, [opening, router]);
@@ -165,7 +146,6 @@ export default function PacksPage() {
 
       if (res.ok) {
         const data = await res.json()
-        console.log(data)
         let cards: PulledCard[] = data.cards
         if (cards.length > 0 && !('packIndex' in cards[0])) {
           const packSize = packs.find(p => p._id === packId)?.cardPool.length || 8
@@ -174,7 +154,6 @@ export default function PacksPage() {
         setPulledCards(cards)
         let credits = user.credits - data.creditsCost
         setUser({ ...user, credits: credits })
-        setCurrentPack(0)
         setShowResults(true)
       }
     } catch (error) {
@@ -196,7 +175,6 @@ export default function PacksPage() {
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Blocking spinner overlay while opening packs */}
       {opening && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
           <div className="flex flex-col items-center gap-4">
@@ -219,14 +197,14 @@ export default function PacksPage() {
               <CardHeader>
                 <div className="aspect-video bg-gradient-to-br from-primary/20 to-purple-500/20 rounded-lg flex items-center justify-center mb-4 overflow-hidden">
                   {pack.headerImageUrl ? (
-                  <img
-                    src={pack.headerImageUrl}
-                    alt={pack.name}
-                    className="object-contain h-full w-full"
-                    loading="lazy"
-                  />
+                    <img
+                      src={pack.headerImageUrl}
+                      alt={pack.name}
+                      className="object-contain h-full w-full"
+                      loading="lazy"
+                    />
                   ) : (
-                  <Package className="h-16 w-16 text-primary" />
+                    <Package className="h-16 w-16 text-primary" />
                   )}
                 </div>
                 <CardTitle>{pack.name}</CardTitle>
@@ -267,187 +245,49 @@ export default function PacksPage() {
       </main>
 
       <Dialog open={showResults} onOpenChange={setShowResults}>
-        <DialogContent className={
-          (() => {
-            let packCardCount = 8;
-            if (pulledCards.length > 0) {
-              // Try to find the pack by packId if available
-              const firstPackIndex = pulledCards[0]?.packIndex;
-              if (typeof firstPackIndex === 'number') {
-                // If packIndex is present, try to infer pack size from packs array
-                // Assume all packs opened are of the same type (from handleOpenPack)
-                // Use the quantity input to determine which pack was opened
-                // Fallback to packs[0] if not found
-                packCardCount = packs[0]?.cardPool.length || 8;
-              } else {
-                // If no packIndex, fallback to packs[0]
-                packCardCount = packs[0]?.cardPool.length || 8;
-              }
-            }
-            return (pulledCards.length > 0 && pulledCards.length / packCardCount > 10)
-              ? "max-h-[90vh] min-h-[60vh] overflow-y-auto" : "max-h-[80vh] overflow-y-auto";
-          })()
-        }>
+        <DialogContent className="max-h-[90vh] min-h-[60vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Pack Opened!
+              {pulledCards.length / 8 === 1
+                ? "1 Pack Opened!"
+                : `${pulledCards.length / 8} Packs Opened!`}
             </DialogTitle>
-            <DialogDescription>Here are your new cards</DialogDescription>
+            <DialogDescription>
+              Here are your cards
+            </DialogDescription>
           </DialogHeader>
+          <div className="grid grid-cols-5 gap-4">
+            {[...pulledCards]
+              .sort((a, b) => {
+                const rarityA = RARITY_ORDER.indexOf(a.rarity);
+                const rarityB = RARITY_ORDER.indexOf(b.rarity);
+                if (rarityA !== rarityB) return rarityA - rarityB;
+                return a.name.localeCompare(b.name);
+              })
+              .map((card, i) => {
+                const icon = RARITY_ICONS[card.rarity];
+                const abbr = RARITY_ABBREVIATIONS[card.rarity] || card.rarity.charAt(0);
 
-          {/* If more than 10 packs, show summary by rarity */}
-          {(() => {
-            const packSize = pulledCards.length > 0 ? (packs.find(p => p._id === pulledCards[0]?.packIndex !== undefined ? packs[0]._id : "")?.cardPool.length || 8) : 8;
-            const quantity = pulledCards.length > 0 ? pulledCards.length / packSize : 0;
-            if (quantity > 10) {
-              // Group all pulled cards by rarity, then by name
-              const rarityGroups = RARITY_ORDER.map(rarity => ({
-                rarity,
-                cards: pulledCards.filter(card => card.rarity === rarity)
-              })).filter(g => g.cards.length > 0)
-              return (
-                <div className="space-y-8">
-                  {rarityGroups.map(rg => {
-                    // Group by name
-                    const nameMap = new Map<string, { name: string, imageUrl?: string, count: number }>()
-                    for (const card of rg.cards) {
-                      if (!nameMap.has(card.name)) {
-                        nameMap.set(card.name, { name: card.name, imageUrl: card.imageUrl, count: 1 })
-                      } else {
-                        nameMap.get(card.name)!.count++
-                      }
-                    }
-                    const grouped = Array.from(nameMap.values())
-                    return (
-                      <div key={rg.rarity}>
-                        <h3 className="font-bold text-lg mb-2">{rg.rarity}</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                          {grouped.map(card => (
-                            <div key={card.name} className="flex flex-col items-center">
-                              <div className="aspect-[2/3] w-full bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center mb-2">
-                                <img
-                                  src={card.imageUrl || "/placeholder.svg"}
-                                  alt={card.name}
-                                  className="max-h-full max-w-full object-contain"
-                                  loading="lazy"
-                                />
-                              </div>
-                              <span className="font-semibold text-sm truncate w-full text-center">{card.name}</span>
-                              <span className="block text-xs mt-1">x{card.count}</span>
-                            </div>
-                          ))}
-                        </div>
+                return (
+                  <div key={card._id || card.name + i} className="flex flex-col items-center">
+                    <div className="relative aspect-[2/3] w-full from-primary/10 to-purple-500/10 flex flex-col rounded-lg overflow-hidden hover:scale-102 transition-transform duration-200">
+                      <div
+                        className="w-7 h-7 m-1 flex items-center justify-center rounded-full text-xs font-bold shadow mt-2 ml-2 self-start"
+                        style={{ backgroundColor: icon?.color, color: icon?.textColor }}
+                      >
+                        {abbr}
                       </div>
-                    )
-                  })}
-                </div>
-              )
-            }
-            // Find max packIndex
-            const maxPack = pulledCards.reduce((max, c) => c.packIndex !== undefined && c.packIndex > max ? c.packIndex : max, 0)
-            if (maxPack > 0) {
-              return (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Button size="sm" variant="outline" onClick={() => setCurrentPack(p => Math.max(0, p - 1))} disabled={currentPack === 0}>
-                      Previous Pack
-                    </Button>
-                    <span className="text-sm">Pack {currentPack + 1} of {maxPack + 1}</span>
-                    <Button size="sm" variant="outline" onClick={() => setCurrentPack(p => Math.min(maxPack, p + 1))} disabled={currentPack === maxPack}>
-                      Next Pack
-                    </Button>
-                  </div>
-                  {/* Responsive horizontal list or grid */}
-                  <div className="w-full">
-                    {/* Desktop: horizontal scrollable row */}
-                    <div className="hidden md:flex gap-4 overflow-x-auto pb-2" style={{ minHeight: 320 }}>
-                      {groupCards(pulledCards.filter(card => card.packIndex === currentPack || card.packIndex === undefined))
-                        .concat(
-                          pulledCards
-                            .filter(card => card.packIndex === currentPack || card.packIndex === undefined)
-                            .filter(card => !card.canDust)
-                            .map(card => ({
-                              key: card._id || card.name + card.rarity,
-                              name: card.name,
-                              rarity: card.rarity,
-                              imageUrl: card.imageUrl,
-                              dustValue: card.dustValue,
-                              canDust: false,
-                              count: 1,
-                              ids: card._id ? [card._id] : [],
-                            }))
-                        )
-                        .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity))
-                        .map((group, index) => (
-                          <div key={group.key} className="space-y-2 min-w-[180px] max-w-[200px]">
-                            <Card className="overflow-hidden">
-                              <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center">
-                                <img
-                                  src={group.imageUrl || "/placeholder.svg"}
-                                  alt={group.name}
-                                  className="max-h-full max-w-full object-contain"
-                                  loading="lazy"
-                                />
-                              </div>
-                              <CardContent className="p-3">
-                                <p className="font-semibold text-sm truncate">{group.name}</p>
-                                <Badge variant="outline" className="mt-1 text-xs">
-                                  {group.rarity}
-                                </Badge>
-                                <span className="block text-xs mt-1">x{group.count}</span>
-                              </CardContent>
-                            </Card>
-                          </div>
-                        ))}
-                    </div>
-                    {/* Mobile: grid */}
-                    <div className="grid grid-cols-2 gap-4 mt-4 md:hidden">
-                      {groupCards(pulledCards.filter(card => card.packIndex === currentPack || card.packIndex === undefined))
-                        .concat(
-                          pulledCards
-                            .filter(card => card.packIndex === currentPack || card.packIndex === undefined)
-                            .filter(card => !card.canDust)
-                            .map(card => ({
-                              key: card._id || card.name + card.rarity,
-                              name: card.name,
-                              rarity: card.rarity,
-                              imageUrl: card.imageUrl,
-                              dustValue: card.dustValue,
-                              canDust: false,
-                              count: 1,
-                              ids: card._id ? [card._id] : [],
-                            }))
-                        )
-                        .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity))
-                        .map((group, index) => (
-                          <div key={group.key} className="space-y-2">
-                            <Card className="overflow-hidden">
-                              <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center">
-                                <img
-                                  src={group.imageUrl || "/placeholder.svg"}
-                                  alt={group.name}
-                                  className="max-h-full max-w-full object-contain"
-                                  loading="lazy"
-                                />
-                              </div>
-                              <CardContent className="p-3">
-                                <p className="font-semibold text-sm truncate">{group.name}</p>
-                                <Badge variant="outline" className="mt-1 text-xs">
-                                  {group.rarity}
-                                </Badge>
-                                <span className="block text-xs mt-1">x{group.count}</span>
-                              </CardContent>
-                            </Card>
-                          </div>
-                        ))}
+                      <img
+                        src={card.imageUrl || "/placeholder.svg"}
+                        alt={card.name}
+                        className="w-full h-full object-contain transition-transform duration-200"
+                        loading="lazy"
+                      />
                     </div>
                   </div>
-                </div>
-              )
-            }
-            return null
-          })()}
+                );
+              })}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

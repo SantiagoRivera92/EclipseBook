@@ -1,8 +1,8 @@
-// Application constants
+import { text } from "stream/consumers"
 
 export const CREDITS_ON_SIGNUP = 1000
 export const DAILY_CREDITS = 25
-export const DAILY_CLAIM_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours in ms
+export const DAILY_CLAIM_INTERVAL = 24 * 60 * 60 * 1000
 
 export const LADDER_STREAK_CAP = 20
 export const LADDER_CREDITS_PER_WIN = (streak: number) => Math.min(streak, LADDER_STREAK_CAP)
@@ -11,7 +11,7 @@ export const ELIMINATION_ENTRY_COST = 50
 export const ELIMINATION_MAX_PLAYERS = 8
 export const ELIMINATION_WINNER_CREDITS = 200
 export const ELIMINATION_SECOND_CREDITS = 100
-export const ELIMINATION_THIRD_FOURTH_CREDITS = 50 // They get their entry back
+export const ELIMINATION_THIRD_FOURTH_CREDITS = 50
 
 export const TOURNAMENT_PRIZE_DISTRIBUTION = {
   1: 0.4,
@@ -25,8 +25,6 @@ export const TOURNAMENT_PRIZE_DISTRIBUTION = {
 }
 
 export const CARD_COPY_LIMIT = 3
-export const MARKETPLACE_LISTING_EXPIRY = 7 * 24 * 60 * 60 * 1000 // 7 days in ms
-export const MARKETPLACE_AUCTION_EXPIRY = 3 * 24 * 60 * 60 * 1000 // 3 days in ms
 
 export const RARITIES = [
   "Common",
@@ -46,7 +44,24 @@ export const RARITY_DUST_VALUES: Record<string, number> = {
   "Ultimate Rare": 120,
 }
 
-// Standardized slot ratios for all packs (8 cards per pack)
+export const RARITY_ABBREVIATIONS: Record<string, string> = {
+  "Common": "C",
+  "Rare": "R",
+  "Super Rare": "SR",
+  "Ultra Rare": "UR",
+  "Secret Rare": "SCR",
+  "Ultimate Rare": "UTR",
+}
+
+export const RARITY_ICONS: Record<string, any> = {
+  "Common": { color: "#000000", textColor: "#FFFFFF" },
+  "Rare": { color: "#666666", textColor: "#FFFFFF" },
+  "Super Rare": { color: "#0066cc", textColor: "#FFFFFF" },
+  "Ultra Rare": { color: "#6600cc", textColor: "#FFFFFF" },
+  "Secret Rare": { color: "#ff9900", textColor: "#000000" },
+  "Ultimate Rare": { color: "#cc6600", textColor: "#FFFFFF" },
+}
+
 export const SLOT_RATIOS = [
   { rarity: "Common", chance: 0.6, dv: 1 },
   { rarity: "Rare", chance: 0.2, dv: 3 },
@@ -56,5 +71,4 @@ export const SLOT_RATIOS = [
   { rarity: "Ultimate Rare", chance: 0.005, dv: 120 },
 ]
 
-// Calculate average dust value per pack (8 cards)
 export const AVERAGE_DUST_VALUE_PER_PACK = SLOT_RATIOS.reduce((sum, r) => sum + r.chance * r.dv, 0) * 8

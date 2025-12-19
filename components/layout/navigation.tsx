@@ -31,8 +31,9 @@ export function Navigation({ user }: NavigationProps) {
     { href: "/dashboard", label: "Dashboard" },
     { href: "/packs", label: "Packs" },
     { href: "/decks", label: "Decks" },
+    { href: "/collection", label: "Collection" },
     { href: "/play", label: "Play" },
-    { href: "/marketplace", label: "Market" },
+    { href: "/help", label: "Help" },
   ]
 
   return (

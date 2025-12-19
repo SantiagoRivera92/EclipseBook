@@ -193,12 +193,12 @@ export default function DashboardPage() {
             </Card>
           </Link>
 
-          <Link href="/marketplace">
+          <Link href="/help">
             <Card className="cursor-pointer hover:border-primary transition-colors h-full">
               <CardHeader>
                 <div className="flex items-center gap-3">
                   <div>
-                    <CardTitle>Marketplace</CardTitle>
+                    <CardTitle>Help</CardTitle>
                   </div>
                 </div>
               </CardHeader>

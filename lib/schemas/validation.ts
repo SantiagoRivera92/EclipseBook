@@ -1,9 +1,5 @@
 import { z } from "zod"
 
-export const MarketplaceListingSchema = z.object({
-  cardId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid card ID"),
-  price: z.number().int().positive().max(1000000, "Price too high"),
-})
 
 export const ProfileUpdateSchema = z.object({
   cardArtId: z.string().optional(),

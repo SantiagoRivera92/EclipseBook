@@ -53,29 +53,3 @@ export const UserCollectionSchema = z.object({
 })
 
 export type UserCollection = z.infer<typeof UserCollectionSchema>
-
-export const MarketplaceListing = z.object({
-  _id: z.string().optional(),
-  cardCode: z.number(), // Changed from cardId to cardCode
-  rarity: z.string(), // Added rarity to specify which rarity is being sold
-  quantity: z.number().int().positive().default(1), // Added quantity
-  sellerId: z.string(),
-  price: z.number().int().positive(), // Price per card
-  type: z.enum(["listing", "auction"]),
-  expiresAt: z.date(),
-  startingBid: z.number().int().positive().optional(), // For auctions
-  bids: z
-    .array(
-      z.object({
-        bidderId: z.string(),
-        amount: z.number().int().positive(),
-        bidAt: z.date(),
-      }),
-    )
-    .optional(),
-  sold: z.boolean().default(false),
-  soldQuantity: z.number().int().min(0).default(0), // Track how many sold
-  createdAt: z.date().optional(),
-})
-
-export type MarketplaceListing = z.infer<typeof MarketplaceListing>

@@ -236,8 +236,8 @@ export default function CollectionPage() {
                   const keepExpensive = calculateMassDustStats('keepexpensive')
                   return (
                     <>
-                      You can dismantle <b>{keepCheap.totalCards}</b> cards for <b>{keepCheap.totalCredits}</b> credits (keeping lowest rarity),<br />
-                      or <b>{keepExpensive.totalCards}</b> cards for <b>{keepExpensive.totalCredits}</b> credits (keeping highest rarity).<br />
+                      You can dust <b>{keepCheap.totalCards}</b> cards for <b>{keepCheap.totalCredits}</b> credits (keeping lowest rarity),
+                      or <b>{keepExpensive.totalCredits}</b> credits (keeping highest rarity).<br />
                       Which rarities do you want to keep?
                     </>
                   )
@@ -249,16 +249,16 @@ export default function CollectionPage() {
               <Button
                 variant="destructive"
                 disabled={massDusting}
-                onClick={() => setConfirmMassDust('keepexpensive')}
+                onClick={() => setConfirmMassDust('keepcheap')}
               >
-                Keep highest rarity
+                Keep lowest rarity
               </Button>
               <Button
                 variant="destructive"
                 disabled={massDusting}
-                onClick={() => setConfirmMassDust('keepcheap')}
+                onClick={() => setConfirmMassDust('keepexpensive')}
               >
-                Keep lowest rarity
+                Keep highest rarity
               </Button>
               <Button
                 variant="outline"
@@ -281,6 +281,7 @@ export default function CollectionPage() {
                       variant="outline"
                       onClick={() => setConfirmMassDust(null)}
                       disabled={massDusting}
+                      className="flex-1"
                     >
                       Cancel
                     </Button>
@@ -290,6 +291,7 @@ export default function CollectionPage() {
                       onClick={async () => {
                         await handleMassDust(confirmMassDust)
                       }}
+                      className="flex-1"
                     >
                       Confirm
                     </Button>

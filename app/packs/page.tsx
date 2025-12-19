@@ -41,6 +41,7 @@ const RARITY_ORDER = [
 import { useRef as useReactRef } from "react"
 
 export default function PacksPage() {
+  const [showSetDialog, setShowSetDialog] = useState<string | null>(null)
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [packs, setPacks] = useState<Pack[]>([])
@@ -212,9 +213,64 @@ export default function PacksPage() {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <Badge variant="secondary">{pack.cardPool.length} cards</Badge>
+                  <Badge
+                    variant="secondary"
+                    className="cursor-pointer"
+                    onClick={() => setShowSetDialog(pack._id)}
+                  >
+                    {pack.cardPool.length} cards
+                  </Badge>
                   <span className="text-2xl font-bold text-primary">{pack.price} credits</span>
                 </div>
+                {/* Set Contents Dialog */}
+                <Dialog open={!!showSetDialog} onOpenChange={() => setShowSetDialog(null)}>
+                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Set Contents</DialogTitle>
+                      <DialogDescription>
+                        All cards and their possible rarities in this set.
+                      </DialogDescription>
+                    </DialogHeader>
+                    {(() => {
+                      const pack = packs.find(p => p._id === showSetDialog)
+                      if (!pack) return null
+
+                      // Flatten cards by rarity
+                      const cards = pack.cardPool.flatMap(card => {
+                        const rarities: string[] = card.rarities || (card.rarity ? [card.rarity] : ["Common"])
+                        return rarities.map(rarity => ({
+                          ...card,
+                          rarity,
+                        }))
+                      })
+
+                      // Sort by rarity, then name
+                      cards.sort((a, b) => {
+                        const rarityA = RARITY_ORDER.indexOf(a.rarity || "Common")
+                        const rarityB = RARITY_ORDER.indexOf(b.rarity || "Common")
+                        if (rarityA !== rarityB) return rarityA - rarityB
+                        return a.name.localeCompare(b.name)
+                      })
+
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                          {cards.map((card, idx) => (
+                            <div key={(card.code || card.name) + card.rarity + idx} className="border rounded p-3 flex flex-col gap-2 bg-card">
+                              <div className="flex items-center gap-2">
+                                {card.imageUrl && (
+                                  <img src={card.imageUrl} alt={card.name} className="object-contain rounded" />
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                <Badge variant="outline">{RARITY_ABBREVIATIONS[card.rarity] || card.rarity}</Badge>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })()}
+                  </DialogContent>
+                </Dialog>
               </CardContent>
               <CardFooter className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 w-full">

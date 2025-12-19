@@ -8,7 +8,12 @@ export async function GET() {
     const packsCollection = db.collection("card_packs")
 
     const packs = await packsCollection.find({}).toArray()
-
+    // Just in case lol
+    for (const pack of packs) {
+      for (const card of pack.cardPool) {
+        card.imageUrl = `https://images.ygoprodeck.com/images/cards/${card.code}.jpg`
+      }
+    }
     return NextResponse.json(packs)
   } catch (error) {
     console.error("Get packs error:", error)

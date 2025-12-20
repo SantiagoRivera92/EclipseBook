@@ -112,9 +112,9 @@ export default function DeckBuilderPage() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[600px] overflow-y-auto">
                   {allCards
                     .filter((card) => card.name.toLowerCase().includes(searchQuery.toLowerCase()))
-                    .map((card) => (
+                    .map((card, i) => (
                       <div
-                        key={card._id}
+                        key={card._id + "" + i}
                         className="cursor-pointer hover:scale-105 transition-transform"
                         onClick={() => {
                           if (card.type === "Extra Deck" && extraDeck.length < 15) {

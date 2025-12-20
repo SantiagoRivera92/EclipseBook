@@ -22,6 +22,7 @@ const RARITY_ORDER = [
 ]
 
 export default function CollectionPage() {
+  const [sortOption, setSortOption] = useState<'name' | 'rarity-high' | 'rarity-low'>('name')
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [cards, setCards] = useState<any[]>([])
@@ -191,10 +192,22 @@ export default function CollectionPage() {
 
   if (!user) return null
 
-  const filteredCards = groupCards(cards).filter((card) => {
+  let filteredCards = groupCards(cards).filter((card) => {
     const matchesSearch = card.name.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesSearch
   })
+
+  // Sorting logic
+  if (sortOption === 'name') {
+    filteredCards = filteredCards.sort((a, b) => a.name.localeCompare(b.name))
+  } else if (sortOption === 'rarity-high') {
+    filteredCards = filteredCards.sort((a, b) => {
+      // Highest rarity for each card
+      const aHighest = a.rarities.reduce((prev, curr) => RARITY_ORDER.indexOf(curr.rarity) < RARITY_ORDER.indexOf(prev.rarity) ? curr : prev, a.rarities[0])
+      const bHighest = b.rarities.reduce((prev, curr) => RARITY_ORDER.indexOf(curr.rarity) < RARITY_ORDER.indexOf(prev.rarity) ? curr : prev, b.rarities[0])
+      return RARITY_ORDER.indexOf(aHighest.rarity) - RARITY_ORDER.indexOf(bHighest.rarity)
+    })
+  }
 
   const totalCards = cards.reduce((sum, card) => sum + card.count, 0)
 
@@ -206,7 +219,7 @@ export default function CollectionPage() {
         <PageHeader title="My Collection" description={`${totalCards} cards owned`} />
 
         <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center">
-          <div className="flex flex-row w-full">
+          <div className="flex flex-row w-full items-center">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
@@ -216,12 +229,22 @@ export default function CollectionPage() {
                 className="pl-10"
               />
             </div>
-            <Button
-              className="ml-4 bg-red-600 hover:bg-red-700 text-white"
-              onClick={() => setMassDustDialog(true)}
-            >
-              Dust all extra copies
-            </Button>
+            <div className="ml-4 flex items-center gap-2">
+              <select
+                value={sortOption}
+                onChange={e => setSortOption(e.target.value as any)}
+                className="border rounded px-2 py-1 text-sm bg-background"
+              >
+                <option value="name">Sort by Name</option>
+                <option value="rarity-high">Sort by Highest Rarity</option>
+              </select>
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={() => setMassDustDialog(true)}
+              >
+                Dust all extra copies
+              </Button>
+            </div>
           </div>
         </div>
 

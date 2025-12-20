@@ -48,13 +48,10 @@ export default function TournamentsPage() {
 
   const handleJoinTournament = async (tournamentId: string, entryFee: number) => {
     if (user.credits < entryFee) return
-
-    const token = localStorage.getItem("auth_token")
     try {
       const res = await fetch("/api/tournaments/join", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ tournamentId }),

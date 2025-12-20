@@ -23,18 +23,12 @@ export default function DeckBuilderPage() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const token = localStorage.getItem("auth_token")
-      if (!token) {
-        router.push("/")
-        return
-      }
-
       try {
         const [userRes, cardsRes] = await Promise.all([
-          fetch("/api/user/profile", { headers: { Authorization: `Bearer ${token}` } }),
-          fetch("/api/cards/all", { headers: { Authorization: `Bearer ${token}` } }),
+          fetch("/api/user/profile"),
+          fetch("/api/collection"),
         ])
-
+        console.log(cardsRes)
         if (userRes.ok) setUser(await userRes.json())
         if (cardsRes.ok) setAllCards(await cardsRes.json())
       } catch (error) {
@@ -46,12 +40,10 @@ export default function DeckBuilderPage() {
   }, [router])
 
   const handleSave = async () => {
-    const token = localStorage.getItem("auth_token")
     try {
       const res = await fetch("/api/decks", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

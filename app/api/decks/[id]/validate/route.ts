@@ -1,4 +1,3 @@
-// Validate that user owns all cards in deck (streamlined collection system)
 import { type NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getDatabase } from "@/lib/db"

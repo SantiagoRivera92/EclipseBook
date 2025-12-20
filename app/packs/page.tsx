@@ -19,7 +19,6 @@ interface Pack {
   headerImageUrl?: string
 }
 
-
 interface PulledCard {
   _id?: string
   name: string

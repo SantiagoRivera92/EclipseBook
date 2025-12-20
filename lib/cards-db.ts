@@ -64,6 +64,13 @@ function getCardsDatabase(): Database.Database {
 export interface Card {
   code: number
   name: string
+  desc: string
+  atk: number | null
+  def: number | null
+  level: number | null
+  type: number | null
+  race: number | null
+  attribute: number | null
 }
 
 export function searchCardsByName(query: string, limit: number = 20, offset: number = 0): Card[] {
@@ -74,28 +81,46 @@ export function searchCardsByName(query: string, limit: number = 20, offset: num
   // - 'texts' contains card text (id, name, desc, etc.)
   // We need to JOIN them to get both code and name
   const stmt = database.prepare(`
-    SELECT d.id as code, t.name 
-    FROM datas d 
-    JOIN texts t ON d.id = t.id 
+    SELECT d.id as code, t.name, t.desc, d.atk, d.def, d.level, d.type, d.race, d.attribute
+    FROM datas d
+    JOIN texts t ON d.id = t.id
     WHERE t.name LIKE ? COLLATE NOCASE
-    ORDER BY t.name 
+    ORDER BY t.name
     LIMIT ? OFFSET ?
   `)
   
-  const results = stmt.all(`%${query}%`, limit, offset) as Array<{ code: number; name: string }>
-  return results
+  const results = stmt.all(`%${query}%`, limit, offset) as Array<Partial<Card>>
+  return results.map(result => ({
+    code: result.code!,
+    name: result.name!,
+    desc: result.desc!,
+    atk: result.atk ?? null,
+    def: result.def ?? null,
+    level: result.level ?? null,
+    type: result.type ?? null,
+    race: result.race ?? null,
+    attribute: result.attribute ?? null,
+  }))
 }
 
 export function getCardByCode(code: number): Card | null {
   const database = getCardsDatabase()
-  
   const stmt = database.prepare(`
-    SELECT d.id as code, t.name 
-    FROM datas d 
-    JOIN texts t ON d.id = t.id 
+    SELECT d.id as code, t.name, t.desc, d.atk, d.def, d.level, d.type, d.race, d.attribute
+    FROM datas d
+    JOIN texts t ON d.id = t.id
     WHERE d.id = ?
   `)
-  
-  const result = stmt.get(code) as { code: number; name: string } | undefined
-  return result || null
+  const result = stmt.get(code) as Card | undefined
+  if (!result) return null
+  // Convert nulls and undefineds for optional fields
+  return {
+    ...result,
+    atk: result.atk ?? null,
+    def: result.def ?? null,
+    level: result.level ?? null,
+    type: result.type ?? null,
+    race: result.race ?? null,
+    attribute: result.attribute ?? null,
+  }
 }

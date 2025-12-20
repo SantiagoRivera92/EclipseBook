@@ -203,8 +203,8 @@ export default function CollectionPage() {
   } else if (sortOption === 'rarity-high') {
     filteredCards = filteredCards.sort((a, b) => {
       // Highest rarity for each card
-      const aHighest = a.rarities.reduce((prev, curr) => RARITY_ORDER.indexOf(curr.rarity) < RARITY_ORDER.indexOf(prev.rarity) ? curr : prev, a.rarities[0])
-      const bHighest = b.rarities.reduce((prev, curr) => RARITY_ORDER.indexOf(curr.rarity) < RARITY_ORDER.indexOf(prev.rarity) ? curr : prev, b.rarities[0])
+      const aHighest = a.rarities.reduce((prev:any, curr:any) => RARITY_ORDER.indexOf(curr.rarity) < RARITY_ORDER.indexOf(prev.rarity) ? curr : prev, a.rarities[0])
+      const bHighest = b.rarities.reduce((prev:any, curr:any) => RARITY_ORDER.indexOf(curr.rarity) < RARITY_ORDER.indexOf(prev.rarity) ? curr : prev, b.rarities[0])
       return RARITY_ORDER.indexOf(aHighest.rarity) - RARITY_ORDER.indexOf(bHighest.rarity)
     })
   }

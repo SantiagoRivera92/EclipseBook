@@ -26,20 +26,18 @@ export async function GET(request: NextRequest) {
 
     for (const cardEntry of userCollection.collection) {
       const cardInfo = getCardByCode(cardEntry.password)
-      const cardName = cardInfo ? cardInfo.name : "Unknown Card"
       const imageUrl = `https://images.ygoprodeck.com/images/cards/${cardEntry.password}.jpg`
 
-      // Add each rarity as a separate entry for the frontend
       for (const [rarity, count] of Object.entries(cardEntry.copies)) {
         const countNumber = typeof count === "number" ? count : Number(count)
         if (countNumber > 0) {
           cards.push({
             cardCode: cardEntry.password,
-            name: cardName,
             imageUrl,
             rarity,
             count: countNumber,
             dustValue: RARITY_DUST_VALUES[rarity] || 5,
+            ...(cardInfo || {}),
           })
         }
       }

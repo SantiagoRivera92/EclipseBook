@@ -8,26 +8,16 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "EclipseBook - Competitive Card Gaming",
-  description: "Build, trade, and compete in the ultimate card game experience",
+  title: "EclipseBook",
+  description: "The ultimate schoolyard experience",
   icons: {
     icon: [
       {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
+        url: "/favicon.png",
       },
     ],
-    apple: "/apple-icon.png",
-  },
-    generator: 'v0.app'
+    apple: "/favicon.png",
+  }
 }
 
 export default function RootLayout({

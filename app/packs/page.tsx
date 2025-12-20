@@ -8,14 +8,19 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Package } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { RARITY_ABBREVIATIONS, RARITY_ICONS } from "@/lib/constants"
+
+interface CardPoolItem {
+  code: number
+  rarities: string[]
+  name: string
+}
 
 interface Pack {
   _id: string
   name: string
   description: string
   price: number
-  cardPool: any[]
+  cardPool: CardPoolItem[]
   headerImageUrl?: string
 }
 
@@ -38,6 +43,7 @@ const RARITY_ORDER = [
 ]
 
 import { useRef as useReactRef } from "react"
+import { CardImage } from "@/components/shared/card-image"
 
 export default function PacksPage() {
   const [showSetDialog, setShowSetDialog] = useState<string | null>(null)
@@ -234,15 +240,14 @@ export default function PacksPage() {
                       const pack = packs.find(p => p._id === showSetDialog)
                       if (!pack) return null
 
-                      // Flatten cards by rarity
-                      const cards = pack.cardPool.flatMap(card => {
-                        const rarities: string[] = card.rarities || (card.rarity ? [card.rarity] : ["Common"])
-                        return rarities.map(rarity => ({
-                          ...card,
-                          rarity,
+                      var cards = pack.cardPool.flatMap(cardItem =>
+                        cardItem.rarities.map(rarity => ({
+                          code: cardItem.code,
+                          name: cardItem.name,
+                          rarity: rarity,
+                          imageUrl: `https://images.ygoprodeck.com/images/cards/${cardItem.code}.jpg`,
                         }))
-                      })
-
+                      )
                       // Sort by rarity, then name
                       cards.sort((a, b) => {
                         const rarityA = RARITY_ORDER.indexOf(a.rarity || "Common")
@@ -254,16 +259,12 @@ export default function PacksPage() {
                       return (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
                           {cards.map((card, idx) => (
-                            <div key={(card.code || card.name) + card.rarity + idx} className="border rounded p-3 flex flex-col gap-2 bg-card">
-                              <div className="flex items-center gap-2">
-                                {card.imageUrl && (
-                                  <img src={card.imageUrl} alt={card.name} className="object-contain rounded" />
-                                )}
-                              </div>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                <Badge variant="outline">{RARITY_ABBREVIATIONS[card.rarity] || card.rarity}</Badge>
-                              </div>
-                            </div>
+                            <CardImage
+                              key={card.code + card.rarity + idx}
+                              name={card.name}
+                              imageUrl={card.imageUrl}
+                              rarity={card.rarity}
+                            />
                           ))}
                         </div>
                       )
@@ -320,25 +321,13 @@ export default function PacksPage() {
                 return a.name.localeCompare(b.name);
               })
               .map((card, i) => {
-                const icon = RARITY_ICONS[card.rarity];
-                const abbr = RARITY_ABBREVIATIONS[card.rarity] || card.rarity.charAt(0);
-
                 return (
                   <div key={card._id || card.name + i} className="flex flex-col items-center">
-                    <div className="relative aspect-[2/3] w-full from-primary/10 to-purple-500/10 flex flex-col rounded-lg overflow-hidden hover:scale-102 transition-transform duration-200">
-                      <div
-                        className="w-7 h-7 m-1 flex items-center justify-center rounded-full text-xs font-bold shadow mt-2 ml-2 self-start"
-                        style={{ backgroundColor: icon?.color, color: icon?.textColor }}
-                      >
-                        {abbr}
-                      </div>
-                      <img
-                        src={card.imageUrl || "/placeholder.svg"}
-                        alt={card.name}
-                        className="w-full h-full object-contain transition-transform duration-200"
-                        loading="lazy"
-                      />
-                    </div>
+                    <CardImage
+                      name={card.name}
+                      imageUrl={card.imageUrl}
+                      rarity={card.rarity}
+                    ></CardImage>
                   </div>
                 );
               })}

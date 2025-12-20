@@ -11,23 +11,17 @@ import { CardGrid } from "@/components/collection/card-grid"
 import { CardActionsDialog } from "@/components/collection/card-actions-dialog"
 import { PageHeader } from "@/components/shared/page-header"
 import { LoadingSpinner } from "@/components/shared/loading-spinner"
-
-const RARITY_ORDER = [
-  "Ultimate Rare",
-  "Secret Rare",
-  "Ultra Rare",
-  "Super Rare",
-  "Rare",
-  "Common",
-]
+import { RARITY_ORDER } from "@/lib/constants"
+import { CollectionCard, ReducedCard } from "@/lib/types"
+import { groupCards } from "@/lib/utils"
 
 export default function CollectionPage() {
   const [sortOption, setSortOption] = useState<'name' | 'rarity-high' | 'rarity-low'>('name')
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
-  const [cards, setCards] = useState<any[]>([])
+  const [cards, setCards] = useState<CollectionCard[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCard, setSelectedCard] = useState<any>(null)
+  const [selectedCard, setSelectedCard] = useState<ReducedCard | null>(null)
   const [showCopiesDialog, setShowCopiesDialog] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -118,29 +112,7 @@ export default function CollectionPage() {
     fetchData()
   }, [router])
 
-  function groupCards(cards: any[]) {
-    return cards.reduce((acc: any[], card) => {
-      let group = acc.find((g) => g.cardCode === card.cardCode)
-      if (!group) {
-        group = {
-          key: card.cardCode,
-          cardCode: card.cardCode,
-          name: card.name,
-          imageUrl: card.imageUrl,
-          totalCount: 0,
-          rarities: [],
-        }
-        acc.push(group)
-      }
-      group.totalCount += card.count
-      group.rarities.push({
-        rarity: card.rarity,
-        count: card.count,
-        dustValue: card.dustValue,
-      })
-      return acc
-    }, [])
-  }
+
 
   function updateSelectedCard(cardCode: number) {
     const grouped = groupCards(cards)

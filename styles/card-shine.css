@@ -1,0 +1,70 @@
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shine__effect {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+}
+
+/* No animation for Commons */
+.card-shine--common {}
+
+/* Silver flash for Rares */
+.card-shine--rare .card-shine__effect {
+  background: linear-gradient(120deg, transparent 46%, rgba(192,192,192,0.18) 49%, transparent 52%);
+  animation: shine-move 2.8s linear infinite;
+}
+
+/* Gold flash for Super Rares */
+.card-shine--super .card-shine__effect {
+  background: linear-gradient(120deg, transparent 46%, rgba(255,215,0,0.15) 49%, transparent 52%);
+  animation: shine-move 2.8s linear infinite;
+}
+
+/* Double gold flash for Ultra Rares */
+.card-shine--ultra .card-shine__effect,
+.card-shine--ultra .card-shine__effect--2 {
+  background: linear-gradient(120deg, transparent 46%, rgba(255,215,0,0.13) 49%, transparent 52%);
+  animation: shine-move 2.8s linear infinite;
+}
+.card-shine--ultra .card-shine__effect--2 {
+  animation-delay: 0.25s;
+}
+
+/* Rainbow flash for Secret Rares */
+.card-shine--secret .card-shine__effect {
+  background: linear-gradient(120deg, transparent 46%, rgba(255,0,255,0.13) 48%, rgba(0,255,255,0.13) 50%, rgba(255,255,0,0.13) 52%, transparent 54%);
+  animation: shine-move 2.8s linear infinite;
+}
+
+/* Platinum flash for Ultimate Rares */
+.card-shine--ultimate .card-shine__effect,
+.card-shine--ultimate .card-shine__effect--2 {
+  background: linear-gradient(120deg, transparent 46%, rgba(229,228,226,0.18) 49%, transparent 52%);
+  animation: shine-move 2.8s linear infinite;
+}
+
+.card-shine--ultimate .card-shine__effect--2 {
+  animation-delay: 0.25s;
+}
+
+@keyframes shine-move {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(10deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(10deg);
+    opacity: 0;
+  }
+}

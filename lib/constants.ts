@@ -26,6 +26,15 @@ export const TOURNAMENT_PRIZE_DISTRIBUTION = {
 
 export const CARD_COPY_LIMIT = 3
 
+export const RARITY_ORDER = [
+  "Ultimate Rare",
+  "Secret Rare",
+  "Ultra Rare",
+  "Super Rare",
+  "Rare",
+  "Common",
+]
+
 export const RARITIES = [
   "Common",
   "Rare",
@@ -44,22 +53,13 @@ export const RARITY_DUST_VALUES: Record<string, number> = {
   "Ultimate Rare": 120,
 }
 
-export const RARITY_ABBREVIATIONS: Record<string, string> = {
-  "Common": "C",
-  "Rare": "R",
-  "Super Rare": "SR",
-  "Ultra Rare": "UR",
-  "Secret Rare": "SCR",
-  "Ultimate Rare": "UTR",
-}
-
 export const RARITY_ICONS: Record<string, any> = {
-  "Common": { color: "#000000", textColor: "#FFFFFF" },
-  "Rare": { color: "#666666", textColor: "#FFFFFF" },
-  "Super Rare": { color: "#0066cc", textColor: "#FFFFFF" },
-  "Ultra Rare": { color: "#6600cc", textColor: "#FFFFFF" },
-  "Secret Rare": { color: "#ff9900", textColor: "#000000" },
-  "Ultimate Rare": { color: "#cc6600", textColor: "#FFFFFF" },
+  "Common": { color: "#000000", textColor: "#FFFFFF", abbr: "C" },
+  "Rare": { color: "#666666", textColor: "#FFFFFF", abbr: "R" },
+  "Super Rare": { color: "#003d7aff", textColor: "#FFFFFF", abbr: "SR" },
+  "Ultra Rare": { color: "#4c0097ff", textColor: "#FFFFFF", abbr: "UR" },
+  "Secret Rare": { color: "#6e005cff", textColor: "#FFFFFF", abbr: "SCR" },
+  "Ultimate Rare": { color: "#005a5eff", textColor: "#FFFFFF", abbr: "UTR" },
 }
 
 export const SLOT_RATIOS = [

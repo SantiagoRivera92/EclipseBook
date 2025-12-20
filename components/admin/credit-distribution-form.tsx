@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { Loader2, User, Users } from "lucide-react"
 
 interface CreditDistributionFormProps {
   toAll?: boolean
@@ -14,97 +15,149 @@ interface CreditDistributionFormProps {
 
 export function CreditDistributionForm({ toAll = false }: CreditDistributionFormProps) {
   const { toast } = useToast()
-  const [targetUser, setTargetUser] = useState("")
-  const [creditAmount, setCreditAmount] = useState("")
-  const [creditReason, setCreditReason] = useState("")
+  const [targetUserId, setTargetUserId] = useState("")
+  const [amount, setAmount] = useState("")
+  const [reason, setReason] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleDistributeCredits = async () => {
+  const handleGiveCredits = async () => {
+    if (!amount || !reason) {
+      toast({
+        title: "Missing fields",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!toAll && !targetUserId) {
+      toast({
+        title: "Missing user ID",
+        description: "Please enter a user ID",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const amountNum = Number.parseInt(amount)
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast({
+        title: "Invalid amount",
+        description: "Please enter a valid amount greater than 0",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsLoading(true)
     try {
-      const res = await fetch("/api/admin/credits", {
+      const response = await fetch("/api/admin/credits/give", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          targetUserId: toAll ? null : targetUserId,
+          amount: amountNum,
+          reason,
           targetAll: toAll,
-          targetUserId: toAll ? undefined : targetUser,
-          amount: Number.parseInt(creditAmount),
-          reason: creditReason,
         }),
       })
 
-      const data = await res.json()
+      const data = await response.json()
 
-      if (res.ok) {
-        toast({
-          title: "Credits distributed",
-          description: toAll
-            ? `Successfully distributed ${creditAmount} credits to ${data.affectedUsers} players`
-            : `Successfully distributed ${creditAmount} credits`,
-        })
-        setTargetUser("")
-        setCreditAmount("")
-        setCreditReason("")
-      } else {
+      if (!response.ok) {
         toast({
           title: "Error",
-          description: data.error || "Failed to distribute credits",
+          description: data.error || "Failed to give credits",
           variant: "destructive",
         })
+        return
       }
+
+      toast({
+        title: "Success",
+        description: toAll
+          ? `Successfully gave ${amount} credits to all players`
+          : `Successfully gave ${amount} credits`,
+      })
+
+      setAmount("")
+      setReason("")
+      setTargetUserId("")
     } catch (error) {
-      console.error("Failed to distribute credits:", error)
+      console.error("Failed to give credits:", error)
       toast({
         title: "Error",
-        description: "Failed to distribute credits",
+        description: "Failed to give credits",
         variant: "destructive",
       })
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{toAll ? "Give Credits to All Players" : "Give Credits to Specific Player"}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          {toAll ? <Users className="h-5 w-5" /> : <User className="h-5 w-5" />}
+          {toAll ? "Give Credits to All Players" : "Give Credits to Specific User"}
+        </CardTitle>
         <CardDescription>
-          {toAll ? "Award credits to every user in the system" : "Award credits to an individual user"}
+          {toAll ? "Award credits to every player in the system" : "Award credits to a specific user by their user ID"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {toAll && (
+          <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            Warning: This will give credits to ALL players. Make sure you are certain about this action.
+          </div>
+        )}
+
         {!toAll && (
           <div>
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="user-id">User ID</Label>
             <Input
-              id="username"
-              placeholder="Enter username"
-              value={targetUser}
-              onChange={(e) => setTargetUser(e.target.value)}
+              id="user-id"
+              placeholder="Enter user ID"
+              value={targetUserId}
+              onChange={(e) => setTargetUserId(e.target.value)}
+              disabled={isLoading}
             />
           </div>
         )}
+
         <div>
-          <Label htmlFor={toAll ? "amount-all" : "amount"}>{toAll ? "Amount per Player" : "Amount"}</Label>
+          <Label htmlFor="amount">{toAll ? "Credits Amount (per player)" : "Credits Amount"}</Label>
           <Input
-            id={toAll ? "amount-all" : "amount"}
+            id="amount"
             type="number"
-            placeholder={toAll ? "50" : "100"}
-            value={creditAmount}
-            onChange={(e) => setCreditAmount(e.target.value)}
+            placeholder="Amount"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            disabled={isLoading}
           />
         </div>
+
         <div>
-          <Label htmlFor={toAll ? "reason-all" : "reason"}>Reason</Label>
+          <Label htmlFor="reason">Reason</Label>
           <Textarea
-            id={toAll ? "reason-all" : "reason"}
-            placeholder="Reason for awarding credits..."
-            value={creditReason}
-            onChange={(e) => setCreditReason(e.target.value)}
+            id="reason"
+            placeholder="Why are you giving these credits?"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            disabled={isLoading}
+            rows={3}
           />
         </div>
+
         <Button
-          className={toAll ? "w-full bg-transparent" : "w-full"}
-          variant={toAll ? "outline" : "default"}
-          onClick={handleDistributeCredits}
+          onClick={handleGiveCredits}
+          disabled={isLoading}
+          variant={toAll ? "destructive" : "default"}
+          className="w-full"
         >
-          {toAll ? "Give to All Players" : "Give Credits"}
+          {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {toAll ? "Give Credits to All Players" : "Give Credits"}
         </Button>
       </CardContent>
     </Card>

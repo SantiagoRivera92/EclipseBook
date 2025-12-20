@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Sparkles } from "lucide-react"
+import { CardImage } from "@/components/shared/card-image"
 
 interface PulledCard {
   _id?: string
@@ -68,9 +68,7 @@ export function PackOpeningDialog({ open, onOpenChange, pulledCards, packs, onDu
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[90vh] min-h-[60vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Packs Opened!
-            </DialogTitle>
+            <DialogTitle className="flex items-center gap-2">Packs Opened!</DialogTitle>
             <DialogDescription>Here are your new cards</DialogDescription>
           </DialogHeader>
           <div className="space-y-8">
@@ -90,16 +88,14 @@ export function PackOpeningDialog({ open, onOpenChange, pulledCards, packs, onDu
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                     {grouped.map((card) => (
                       <div key={card.name} className="flex flex-col items-center">
-                        <div className="aspect-[2/3] w-full bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center mb-2">
-                          <img
-                            src={card.imageUrl || "/placeholder.svg"}
-                            alt={card.name}
-                            className="max-h-full max-w-full object-contain"
-                            loading="lazy"
-                          />
-                        </div>
-                        <span className="font-semibold text-sm truncate w-full text-center">{card.name}</span>
-                        <span className="block text-xs mt-1">x{card.count}</span>
+                        <CardImage
+                          name={card.name}
+                          imageUrl={card.imageUrl}
+                          count={card.count}
+                          variant="card"
+                          aspectRatio="2/3"
+                          showCount={true}
+                        />
                       </div>
                     ))}
                   </div>
@@ -122,9 +118,7 @@ export function PackOpeningDialog({ open, onOpenChange, pulledCards, packs, onDu
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Packs Opened!
-            </DialogTitle>
+            <DialogTitle className="flex items-center gap-2">Packs Opened!</DialogTitle>
             <DialogDescription>Here are your new cards</DialogDescription>
           </DialogHeader>
           <div>
@@ -173,14 +167,13 @@ export function PackOpeningDialog({ open, onOpenChange, pulledCards, packs, onDu
                   .map((group) => (
                     <div key={group.key} className="space-y-2 min-w-[180px] max-w-[200px]">
                       <Card className="overflow-hidden">
-                        <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center">
-                          <img
-                            src={group.imageUrl || "/placeholder.svg"}
-                            alt={group.name}
-                            className="max-h-full max-w-full object-contain"
-                            loading="lazy"
-                          />
-                        </div>
+                        <CardImage
+                          name={group.name}
+                          imageUrl={group.imageUrl}
+                          rarity={group.rarity}
+                          variant="card"
+                          aspectRatio="2/3"
+                        />
                         <CardContent className="p-3">
                           <p className="font-semibold text-sm truncate">{group.name}</p>
                           <Badge variant="outline" className="mt-2">
@@ -213,9 +206,7 @@ export function PackOpeningDialog({ open, onOpenChange, pulledCards, packs, onDu
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            Packs Opened!
-          </DialogTitle>
+          <DialogTitle className="flex items-center gap-2">Packs Opened!</DialogTitle>
           <DialogDescription>Here are your new cards</DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -238,14 +229,13 @@ export function PackOpeningDialog({ open, onOpenChange, pulledCards, packs, onDu
             .map((group) => (
               <div key={group.key} className="space-y-2">
                 <Card className="overflow-hidden">
-                  <div className="aspect-[2/3] bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center">
-                    <img
-                      src={group.imageUrl || "/placeholder.svg"}
-                      alt={group.name}
-                      className="max-h-full max-w-full object-contain"
-                      loading="lazy"
-                    />
-                  </div>
+                  <CardImage
+                    name={group.name}
+                    imageUrl={group.imageUrl}
+                    rarity={group.rarity}
+                    variant="card"
+                    aspectRatio="2/3"
+                  />
                   <CardContent className="p-3">
                     <p className="font-semibold text-sm truncate">{group.name}</p>
                     <Badge variant="outline" className="mt-2">

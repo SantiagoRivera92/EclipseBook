@@ -10,16 +10,17 @@ interface DeckCardProps {
   deck: {
     _id: string
     name: string
-    mainDeckCount: number
-    extraDeckCount: number
-    sideDeckCount: number
+    mainDeck: number[]
+    extraDeck: number[]
+    sideDeck: number[]
     canUse: boolean
-    lastModified: string
+    updatedAt: string
   }
   onDelete: (deckId: string) => void
 }
 
 export function DeckCard({ deck, onDelete }: DeckCardProps) {
+  console.log(deck.updatedAt)
   return (
     <Card className="flex flex-col">
       <CardHeader>
@@ -27,7 +28,7 @@ export function DeckCard({ deck, onDelete }: DeckCardProps) {
           <div>
             <CardTitle className="line-clamp-1">{deck.name}</CardTitle>
             <CardDescription className="mt-1">
-              Last modified: {new Date(deck.lastModified).toLocaleDateString()}
+              Last modified: {new Date(deck.updatedAt).toLocaleDateString()}
             </CardDescription>
           </div>
           {deck.canUse ? <Badge variant="default">Ready</Badge> : <Badge variant="destructive">Missing Cards</Badge>}
@@ -37,15 +38,15 @@ export function DeckCard({ deck, onDelete }: DeckCardProps) {
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Main Deck:</span>
-            <span className="font-semibold">{deck.mainDeckCount} cards</span>
+            <span className="font-semibold">{deck.mainDeck.length} cards</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Extra Deck:</span>
-            <span className="font-semibold">{deck.extraDeckCount} cards</span>
+            <span className="font-semibold">{deck.extraDeck.length} cards</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Side Deck:</span>
-            <span className="font-semibold">{deck.sideDeckCount} cards</span>
+            <span className="font-semibold">{deck.sideDeck.length} cards</span>
           </div>
         </div>
       </CardContent>

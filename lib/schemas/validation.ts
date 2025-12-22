@@ -15,24 +15,9 @@ export const AdminCreditsSchema = z.object({
 
 export const DeckUpdateSchema = z.object({
   name: z.string().min(1).max(50),
-  mainDeck: z.array(
-    z.object({
-      cardCode: z.number().int().positive(),
-      count: z.number().int().positive().max(3),
-    }),
-  ),
-  extraDeck: z.array(
-    z.object({
-      cardCode: z.number().int().positive(),
-      count: z.number().int().positive().max(3),
-    }),
-  ),
-  sideDeck: z.array(
-    z.object({
-      cardCode: z.number().int().positive(),
-      count: z.number().int().positive().max(3),
-    }),
-  ),
+  mainDeck: z.array(z.number().int().positive()),
+  extraDeck: z.array(z.number().int().positive()),
+  sideDeck: z.array(z.number().int().positive()),
 })
 
 export const BidSchema = z.object({

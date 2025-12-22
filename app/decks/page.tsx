@@ -24,11 +24,11 @@ import { LoadingSpinner } from "@/components/shared/loading-spinner"
 interface Deck {
   _id: string
   name: string
-  mainDeckCount: number
-  extraDeckCount: number
-  sideDeckCount: number
+  mainDeck: number[]
+  extraDeck: number[]
+  sideDeck: number[]
   canUse: boolean
-  lastModified: string
+  updatedAt: string
 }
 
 export default function DecksPage() {

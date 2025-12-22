@@ -163,7 +163,7 @@ export function CardImage({
             {rarityIcons.map((r) => {
               return (
                 <div
-                  key={r.rarity}
+                  key={name + r.abbr}
                   className="w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold shadow"
                   style={{ backgroundColor: r.color, color: r.textColor }}
                 >

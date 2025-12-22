@@ -11,6 +11,7 @@ import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@
 import { Plus, X, Search } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SLOT_RATIOS, AVERAGE_DUST_VALUE_PER_PACK } from "@/lib/constants"
+import { CardImage } from "@/components/shared/card-image"
 
 interface PackFormProps {
   selectedPackId: string | null
@@ -25,7 +26,6 @@ export function PackForm({ selectedPackId, packs, onSuccess, onSelectPack, onNew
   const { toast } = useToast()
   const [packName, setPackName] = useState("")
   const [packDescription, setPackDescription] = useState("")
-  const [packPrice, setPackPrice] = useState("")
   const [packHeaderImageUrl, setPackHeaderImageUrl] = useState("")
   const [cardPool, setCardPool] = useState<Array<{ code: number; name: string; rarities: string[] }>>([])
   const [cardSearchQuery, setCardSearchQuery] = useState("")
@@ -40,7 +40,6 @@ export function PackForm({ selectedPackId, packs, onSuccess, onSelectPack, onNew
   const resultsListRef = useRef<HTMLDivElement>(null)
 
   const availableRarities = ["Common", "Rare", "Super Rare", "Ultra Rare", "Secret Rare", "Ultimate Rare"]
-  const priceValid = packPrice ? Number.parseInt(packPrice) > AVERAGE_DUST_VALUE_PER_PACK : false
 
   // Count cards by rarity in the pool
   const rarityCounts = cardPool.reduce(
@@ -60,11 +59,22 @@ export function PackForm({ selectedPackId, packs, onSuccess, onSelectPack, onNew
     if (pack) {
       setPackName(pack.name)
       setPackDescription(pack.description)
-      setPackPrice(String(pack.price))
       setPackHeaderImageUrl(pack.headerImageUrl || "")
       setCardPool(pack.cardPool.map((c: any) => ({ ...c, name: c.name || "" })))
     }
   }, [selectedPackId, packs])
+
+  function startNewPack(){
+    onNewPack()
+    setPackName("")
+    setPackDescription("")
+    setPackHeaderImageUrl("")
+    setCardPool([])
+    setCardSearchQuery("")
+    setCardSearchResults([])
+    setSelectedCard(null)
+    setNewCardRarities([])
+  }
 
   // Search cards by name
   useEffect(() => {
@@ -236,24 +246,6 @@ export function PackForm({ selectedPackId, packs, onSuccess, onSelectPack, onNew
       return
     }
 
-    if (!packPrice || Number.parseInt(packPrice) <= 0) {
-      toast({
-        title: "Invalid price",
-        description: "Please enter a valid price",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!priceValid) {
-      toast({
-        title: "Invalid price",
-        description: `Price must be greater than average dust value (${AVERAGE_DUST_VALUE_PER_PACK.toFixed(2)})`,
-        variant: "destructive",
-      })
-      return
-    }
-
     if (cardPool.length === 0) {
       toast({
         title: "Empty card pool",
@@ -285,7 +277,7 @@ export function PackForm({ selectedPackId, packs, onSuccess, onSelectPack, onNew
           name: packName,
           description: packDescription,
           headerImageUrl: packHeaderImageUrl.trim() || undefined,
-          price: Number.parseInt(packPrice),
+          price: 30,
           cardPool: cardPool.map((card) => ({ code: card.code, rarities: card.rarities, name: card.name })),
         }),
       })
@@ -323,7 +315,7 @@ export function PackForm({ selectedPackId, packs, onSuccess, onSelectPack, onNew
               <CardDescription>Basic information about the pack</CardDescription>
             </div>
             <div className="flex gap-2">
-              <Button variant="secondary" size="sm" onClick={onNewPack} disabled={!selectedPackId}>
+              <Button variant="secondary" size="sm" onClick={startNewPack} disabled={!selectedPackId}>
                 New
               </Button>
             </div>
@@ -371,22 +363,6 @@ export function PackForm({ selectedPackId, packs, onSuccess, onSelectPack, onNew
               value={packHeaderImageUrl}
               onChange={(e) => setPackHeaderImageUrl(e.target.value)}
             />
-          </div>
-          <div>
-            <Label htmlFor="pack-price">Price (Credits)</Label>
-            <Input
-              id="pack-price"
-              type="number"
-              placeholder="100"
-              value={packPrice}
-              onChange={(e) => setPackPrice(e.target.value)}
-              className={!priceValid && packPrice ? "border-destructive" : ""}
-            />
-            {packPrice && !priceValid && (
-              <p className="text-xs text-destructive mt-1">
-                Price must be greater than {AVERAGE_DUST_VALUE_PER_PACK.toFixed(2)}
-              </p>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -463,20 +439,30 @@ export function PackForm({ selectedPackId, packs, onSuccess, onSelectPack, onNew
           {cardPool.length > 0 && (
             <div className="space-y-2">
               <Label>Cards in Pool ({cardPool.length})</Label>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                 {cardPool.map((card, index) => (
-                  <div key={index} className="flex items-start justify-between p-2 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{card.name}</div>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {card.rarities.map((rarity) => (
-                          <Badge key={rarity} variant="secondary" className="text-xs">
-                            {rarity}
-                          </Badge>
-                        ))}
-                      </div>
+                  <div key={index} className="relative group border rounded-lg p-2 flex flex-col items-center bg-background">
+                    <CardImage
+                      name={card.name}
+                      imageUrl={`https://images.ygoprodeck.com/images/cards/${card.code}.jpg`}
+                      rarities={card.rarities.map((rarity: string) => ({ rarity, count: 1, dustValue: 0 }))}
+                      className="w-full"
+                      aspectRatio="813/1185"
+                    />
+                    <div className="mt-2 flex flex-wrap gap-1 justify-center">
+                      {card.rarities.map((rarity: string) => (
+                        <Badge key={rarity} variant="secondary" className="text-xs">
+                          {rarity}
+                        </Badge>
+                      ))}
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => handleRemoveCardFromPool(index)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveCardFromPool(index)}
+                      className="absolute top-1 right-1 opacity-70 group-hover:opacity-100"
+                      aria-label="Remove card"
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>

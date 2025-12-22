@@ -14,11 +14,12 @@ export interface DeckCard {
 
 export interface Deck {
   _id?: string
+  deckId: string
   userId: string
   name: string
-  mainDeck: DeckCard[]
-  extraDeck: DeckCard[]
-  sideDeck: DeckCard[]
+  mainDeck: number[]
+  extraDeck: number[]
+  sideDeck: number[]
   createdAt: Date
   updatedAt: Date
 }

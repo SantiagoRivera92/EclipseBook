@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { BuilderCard } from "./builder-card"
 import type { Card, DeckSection } from "./types"
 import { useDroppable } from "@dnd-kit/core"
+import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable"
 
 interface DeckGridProps {
   cards: Card[]
@@ -23,6 +24,8 @@ export function DeckGrid({ cards, section, title, onInteract, minCount = 0, maxC
   })
 
   const isInvalid = cards.length < minCount || cards.length > maxCount
+
+  const items = cards.map((card, index) => `${section}-${card.cardCode}-${index}`)
 
   return (
     <section className={cn("space-y-3", className)}>
@@ -55,30 +58,32 @@ export function DeckGrid({ cards, section, title, onInteract, minCount = 0, maxC
           isOver ? "border-primary bg-primary/5 shadow-lg" : "border-border",
         )}
       >
-        <div
-          className={cn(
-            "grid gap-2",
-            section === "main"
-              ? "grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10"
-              : "grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10",
-          )}
-        >
-          {cards.map((card, i) => (
-            <BuilderCard
-              key={`${section}-${card.cardCode}-${i}`}
-              card={card}
-              section={section}
-              index={i}
-              onInteract={onInteract}
-            />
-          ))}
+        <SortableContext items={items} strategy={rectSortingStrategy}>
+          <div
+            className={cn(
+              "grid gap-2",
+              section === "main"
+                ? "grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10"
+                : "grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10",
+            )}
+          >
+            {cards.map((card, i) => (
+              <BuilderCard
+                key={`${section}-${card.cardCode}-${i}`}
+                card={card}
+                section={section}
+                index={i}
+                onInteract={onInteract}
+              />
+            ))}
 
-          {cards.length === 0 && (
-            <div className="col-span-full h-32 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-md">
-              <span className="text-sm font-medium opacity-60">Drop cards here</span>
-            </div>
-          )}
-        </div>
+            {cards.length === 0 && (
+              <div className="col-span-full h-32 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed border-border rounded-md">
+                <span className="text-sm font-medium opacity-60">Drop cards here</span>
+              </div>
+            )}
+          </div>
+        </SortableContext>
       </div>
     </section>
   )

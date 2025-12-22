@@ -14,10 +14,60 @@ export async function GET(request: NextRequest) {
 
   try {
     const db = await getDatabase()
+    const collectionCollection = db.collection("collection")
+    const collection = await collectionCollection.findOne({ userId: user.userId })
+    if (!collection) {
+      return NextResponse.json({ error: "User has no collection" }, { status: 404 })
+    }
+    
     const decksCollection = db.collection("decks")
-
     const decks = await decksCollection.find({ userId: user.userId }).sort({ updatedAt: -1 }).toArray()
+    for (const deck of decks) {
+      // Count card occurrences in the deck (main, extra, side)
+      const cardCounts: Record<string, number> = {};
+      const allCards = [...(deck.mainDeck || []), ...(deck.extraDeck || []), ...(deck.sideDeck || [])];
+      for (const cardCode of allCards) {
+        cardCounts[cardCode] = (cardCounts[cardCode] || 0) + 1;
+      }
 
+      // Print the list of all passwords in the collection
+      if (Array.isArray(collection.collection)) {
+        const allPasswords = collection.collection.map((entry: any) => entry.password);
+      }
+
+      // Use collection.collection[cardCode]?.Common for available copies
+      let canUse = true;
+      for (const cardCode in cardCounts) {
+        // Find the card entry in the collection array by matching the 'password' field
+        let cardEntry: any;
+        for (const card of collection.collection) {
+          if (card.password == cardCode) {
+            cardEntry = card;
+            break;
+          }
+        }
+        if (!cardEntry){
+          canUse=false;
+          break;
+        }
+
+        const available =
+          (cardEntry.copies["Common"] || 0) +
+          (cardEntry.copies["Rare"] || 0) +
+          (cardEntry.copies["Super Rare"] || 0) +
+          (cardEntry.copies["Ultra Rare"] || 0) +
+          (cardEntry.copies["Secret Rare"] || 0) +
+          (cardEntry.copies["Ultimate Rare"] || 0);
+
+        if (available < cardCounts[cardCode]) {
+          canUse = false;
+          break;
+        }
+      }
+      deck.canUse = canUse;
+      if (canUse){
+      }
+    }
     return NextResponse.json(decks)
   } catch (error) {
     console.error("Get decks error:", error instanceof Error ? error.message : "Unknown error")
@@ -34,7 +84,6 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-
     const validation = DeckUpdateSchema.safeParse(body)
     if (!validation.success) {
       return NextResponse.json(
@@ -48,7 +97,8 @@ export async function POST(request: NextRequest) {
 
     const { name, mainDeck, extraDeck, sideDeck } = validation.data
 
-    const deck: Deck = {
+    const deck: Omit<Deck, "_id"> = {
+      deckId: user.userId + "-" + Date.now().toString(),
       userId: user.userId,
       name,
       mainDeck: mainDeck || [],

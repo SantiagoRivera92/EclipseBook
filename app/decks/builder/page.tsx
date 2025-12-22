@@ -18,6 +18,7 @@ export default function DeckBuilderPage() {
   const [user, setUser] = useState<any>(null)
   const [deckName, setDeckName] = useState("New Deck")
   const [searchQuery, setSearchQuery] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
   const { toast } = useToast()
   const [filters, setFilters] = useState<FilterState>({
     cardType: null,
@@ -54,27 +55,67 @@ export default function DeckBuilderPage() {
     fetchData()
   }, [])
 
+  const handleSaveDeck = async () => {
+    if (mainDeck.length < 40) {
+      toast({
+        variant: "destructive",
+        title: "Invalid deck",
+        description: "Main Deck must contain at least 40 cards.",
+      })
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const response = await fetch("/api/decks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: deckName,
+          mainDeck: mainDeck.map((c) => c.cardCode),
+          extraDeck: extraDeck.map((c) => c.cardCode),
+          sideDeck: sideDeck.map((c) => c.cardCode),
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "Failed to save deck")
+      }
+
+      toast({
+        title: "Deck saved!",
+        description: `"${deckName}" has been saved successfully.`,
+      })
+      window.location.href = "/decks"
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Failed to save",
+        description: error instanceof Error ? error.message : "An error occurred while saving the deck.",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const handleCardInteraction = useCallback(
     (e: React.MouseEvent, card: Card, source: DeckSection, index?: number) => {
       e.preventDefault()
 
-      // Right click: Remove from deck sections OR Add to main/extra from search
       if (e.type === "contextmenu") {
         if (source === "search") {
-          // Check for Alt/Shift for Side Deck
           if (e.shiftKey || e.altKey) {
             addToSection(card, "side")
           } else {
             addToSection(card, isExtraDeckCard(card.type) ? "extra" : "main")
           }
         } else {
-          // Remove from source
           removeFromSource(source, index!)
         }
         return
       }
 
-      // Left click: Add from search OR Remove from deck
       if (source === "search") {
         addToSection(card, isExtraDeckCard(card.type) ? "extra" : "main")
       } else {
@@ -86,44 +127,50 @@ export default function DeckBuilderPage() {
 
   const addToSection = (card: Card, target: DeckSection) => {
     const currentCount = [...mainDeck, ...extraDeck, ...sideDeck].filter((c) => c.cardCode === card.cardCode).length
+    if (currentCount >= 3)
+      return toast({
+        variant: "destructive",
+        title: "Card limit reached",
+        description: "You can only have up to 3 copies of a card in your deck.",
+      })
+
     if (currentCount >= (card.ownedCount || 0)) {
       return toast({
         variant: "destructive",
         title: "Ownership limit reached",
-        description: `You own only ${card.ownedCount} of this card.`
+        description: `You own only ${card.ownedCount} of this card.`,
       })
     }
-    if (currentCount >= 3) return toast({
-      variant: "destructive",
-      title: "Card limit reached",
-      description: "You can only have up to 3 copies of a card in your deck."
-    })
 
     if (target === "main") {
-      if (mainDeck.length >= 60) return toast({
-        variant: "destructive",
-        title: "Main Deck is full",
-        description: "You cannot add more than 60 cards to the Main Deck."
-      })
+      if (mainDeck.length >= 60)
+        return toast({
+          variant: "destructive",
+          title: "Main Deck is full",
+          description: "You cannot add more than 60 cards to the Main Deck.",
+        })
       setMainDeck((prev) => [...prev, card])
     } else if (target === "extra") {
-      if (!isExtraDeckCard(card.type)) return toast({
-        variant: "destructive",
-        title: "Invalid card type",
-        description: "Only Extra Deck cards are allowed in the Extra Deck."
-      })
-      if (extraDeck.length >= 15) return toast({
-        variant: "destructive",
-        title: "Extra Deck is full",
-        description: "You cannot add more than 15 cards to the Extra Deck."
-      })
+      if (!isExtraDeckCard(card.type))
+        return toast({
+          variant: "destructive",
+          title: "Invalid card type",
+          description: "Only Extra Deck cards are allowed in the Extra Deck.",
+        })
+      if (extraDeck.length >= 15)
+        return toast({
+          variant: "destructive",
+          title: "Extra Deck is full",
+          description: "You cannot add more than 15 cards to the Extra Deck.",
+        })
       setExtraDeck((prev) => [...prev, card])
     } else if (target === "side") {
-      if (sideDeck.length >= 15) return toast({
-        variant: "destructive",
-        title: "Side Deck is full",
-        description: "You cannot add more than 15 cards to the Side Deck."
-      })
+      if (sideDeck.length >= 15)
+        return toast({
+          variant: "destructive",
+          title: "Side Deck is full",
+          description: "You cannot add more than 15 cards to the Side Deck.",
+        })
       setSideDeck((prev) => [...prev, card])
     }
   }
@@ -141,39 +188,123 @@ export default function DeckBuilderPage() {
     const activeData = active.data.current as any
     const overData = over.data.current as any
 
-    if (!activeData || !overData) return
+    if (!activeData) return
 
     const card = activeData.card as Card
     const sourceSection = activeData.section as DeckSection
     const sourceIndex = activeData.index as number
-    const targetSection = overData.section as DeckSection
 
-    // 1. Reordering within same section
-    if (sourceSection === targetSection) {
-      const overIndex = overData.index
-      if (overIndex !== undefined && overIndex !== sourceIndex) {
-        if (sourceSection === "main") setMainDeck((prev) => arrayMove(prev, sourceIndex, overIndex))
-        else if (sourceSection === "extra") setExtraDeck((prev) => arrayMove(prev, sourceIndex, overIndex))
-        else if (sourceSection === "side") setSideDeck((prev) => arrayMove(prev, sourceIndex, overIndex))
+    let targetSection = overData?.section as DeckSection
+    const targetIndex = overData?.index as number | undefined
+
+    if (over.id && typeof over.id === "string" && over.id.startsWith("droppable-")) {
+      targetSection = over.id.replace("droppable-", "") as DeckSection
+    }
+
+    if (!targetSection) return
+
+    if (sourceSection === targetSection && targetIndex !== undefined && sourceIndex !== targetIndex) {
+      if (sourceSection === "main") {
+        setMainDeck((prev) => arrayMove(prev, sourceIndex, targetIndex))
+      } else if (sourceSection === "extra") {
+        setExtraDeck((prev) => arrayMove(prev, sourceIndex, targetIndex))
+      } else if (sourceSection === "side") {
+        setSideDeck((prev) => arrayMove(prev, sourceIndex, targetIndex))
       }
       return
     }
 
-    // 2. Moving between sections
-    if (targetSection === "main" && !isExtraDeckCard(card.type)) {
-      if (mainDeck.length < 60) {
+    if (sourceSection === "search") {
+      const currentCount = [...mainDeck, ...extraDeck, ...sideDeck].filter((c) => c.cardCode === card.cardCode).length
+
+      if (currentCount >= 3) {
+        toast({
+          variant: "destructive",
+          title: "Card limit reached",
+          description: "You can only have up to 3 copies of a card in your deck.",
+        })
+        return
+      }
+
+      if (currentCount >= (card.ownedCount || 0)) {
+        toast({
+          variant: "destructive",
+          title: "Ownership limit reached",
+          description: `You own only ${card.ownedCount} of this card.`,
+        })
+        return
+      }
+
+      if (targetSection === "main" && !isExtraDeckCard(card.type)) {
+        if (mainDeck.length < 60) {
+          setMainDeck((prev) => [...prev, card])
+        }
+      } else if (targetSection === "extra" && isExtraDeckCard(card.type)) {
+        if (extraDeck.length < 15) {
+          setExtraDeck((prev) => [...prev, card])
+        }
+      } else if (targetSection === "side") {
+        if (sideDeck.length < 15) {
+          setSideDeck((prev) => [...prev, card])
+        }
+      } else {
+        if (targetSection === "main" && isExtraDeckCard(card.type)) {
+          toast({
+            variant: "destructive",
+            title: "Invalid card type",
+            description: "Extra Deck cards cannot be added to the Main Deck.",
+          })
+        } else if (targetSection === "extra" && !isExtraDeckCard(card.type)) {
+          toast({
+            variant: "destructive",
+            title: "Invalid card type",
+            description: "Only Extra Deck cards can be added to the Extra Deck.",
+          })
+        }
+      }
+      return
+    }
+
+    if (sourceSection !== targetSection) {
+      if (targetSection === "main" && isExtraDeckCard(card.type)) {
+        toast({
+          variant: "destructive",
+          title: "Invalid move",
+          description: "Extra Deck cards cannot be moved to the Main Deck.",
+        })
+        return
+      }
+
+      if (targetSection === "extra" && !isExtraDeckCard(card.type)) {
+        toast({
+          variant: "destructive",
+          title: "Invalid move",
+          description: "Only Extra Deck cards can be moved to the Extra Deck.",
+        })
+        return
+      }
+
+      let moveSuccess = false
+
+      if (targetSection === "main" && mainDeck.length < 60) {
         setMainDeck((prev) => [...prev, card])
-        removeFromSource(sourceSection, sourceIndex)
-      }
-    } else if (targetSection === "extra" && isExtraDeckCard(card.type)) {
-      if (extraDeck.length < 15) {
+        moveSuccess = true
+      } else if (targetSection === "extra" && extraDeck.length < 15) {
         setExtraDeck((prev) => [...prev, card])
-        removeFromSource(sourceSection, sourceIndex)
-      }
-    } else if (targetSection === "side") {
-      if (sideDeck.length < 15) {
+        moveSuccess = true
+      } else if (targetSection === "side" && sideDeck.length < 15) {
         setSideDeck((prev) => [...prev, card])
+        moveSuccess = true
+      }
+
+      if (moveSuccess) {
         removeFromSource(sourceSection, sourceIndex)
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Deck is full",
+          description: `Cannot move card - ${targetSection} deck has reached its maximum capacity.`,
+        })
       }
     }
   }
@@ -188,24 +319,13 @@ export default function DeckBuilderPage() {
     if (searchQuery.length < 2) return []
 
     return allCards.filter((card) => {
-      // 1. Name search
       const matchName = card.name.toLowerCase().includes(searchQuery.toLowerCase())
       if (!matchName) return false
 
-      // 2. Base Card Type Filter (Monster/Spell/Trap)
       if (filters.cardType === "Monster" && !(card.type & 0x1)) return false
       if (filters.cardType === "Spell" && !(card.type & 0x2)) return false
       if (filters.cardType === "Trap" && !(card.type & 0x4)) return false
 
-      // 3. Sub-type filters for Spells/Traps
-      if (filters.cardType === "Spell" && filters.spellType) {
-        // Implementation for spell sub-types would go here based on card.type bits
-      }
-      if (filters.cardType === "Trap" && filters.trapType) {
-        // Implementation for trap sub-types would go here based on card.type bits
-      }
-
-      // 4. Monster Specific Filters
       if (filters.cardType === "Monster") {
         if (filters.attribute && card.attributeName !== filters.attribute) return false
         if (filters.level && card.level !== filters.level) return false
@@ -213,7 +333,6 @@ export default function DeckBuilderPage() {
         if (filters.atk && (card.attack === undefined || card.attack < Number.parseInt(filters.atk))) return false
         if (filters.def && (card.defense === undefined || card.defense < Number.parseInt(filters.def))) return false
 
-        // Monster Card Type (Fusion, Synchro, Xyz etc)
         if (filters.monsterCardType) {
           if (filters.monsterCardType === "Fusion" && !(card.type & 0x40)) return false
           if (filters.monsterCardType === "Synchro" && !(card.type & 0x2000)) return false
@@ -227,9 +346,9 @@ export default function DeckBuilderPage() {
 
   const cardsInDeckCount = useMemo(() => {
     const counts: Record<number, number> = {}
-      ;[...mainDeck, ...extraDeck, ...sideDeck].forEach((card) => {
-        counts[card.cardCode] = (counts[card.cardCode] || 0) + 1
-      })
+    ;[...mainDeck, ...extraDeck, ...sideDeck].forEach((card) => {
+      counts[card.cardCode] = (counts[card.cardCode] || 0) + 1
+    })
     return counts
   }, [mainDeck, extraDeck, sideDeck])
 
@@ -277,8 +396,12 @@ export default function DeckBuilderPage() {
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear
                   </Button>
-                  <Button className="h-9 px-6 font-bold shadow-sm">
-                    <Save className="h-4 w-4 mr-2" /> Save Deck
+                  <Button
+                    className="h-9 px-6 font-bold shadow-sm"
+                    onClick={handleSaveDeck}
+                    disabled={isSaving || mainDeck.length < 40}
+                  >
+                    <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Save Deck"}
                   </Button>
                 </div>
               </div>

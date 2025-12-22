@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Sort cards by name alphabetically
-    cards.sort((a, b) => a.name.localeCompare(b.name))
+    cards.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""))
 
     return NextResponse.json(cards)
   } catch (error) {

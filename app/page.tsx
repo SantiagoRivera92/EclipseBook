@@ -7,12 +7,16 @@ import { Button } from "@/components/ui/button"
 export default function Home() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
+  const [pushing, setPushing] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const userRes = await fetch("/api/user/profile")
-        if (userRes.ok) router.push("/dashboard")
+        if (userRes.ok){
+          router.push("/dashboard")
+          setPushing(true)
+        } 
       } catch (error) {
         console.error("Failed to fetch data:", error)
       } finally {
@@ -23,7 +27,7 @@ export default function Home() {
     fetchData()
   }, [router])
 
-  if (loading) {
+  if (loading || pushing) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>
   }
 

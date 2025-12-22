@@ -2,7 +2,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getCurrentUser } from "@/lib/auth"
 import { getDatabase } from "@/lib/db"
-import { ObjectId } from "mongodb"
 import { DAILY_CREDITS, DAILY_CLAIM_INTERVAL } from "@/lib/constants"
 
 export async function POST(request: NextRequest) {
@@ -17,22 +16,24 @@ export async function POST(request: NextRequest) {
     const usersCollection = db.collection("users")
     const notificationsCollection = db.collection("notifications")
 
-    const userDoc = await usersCollection.findOne({ _id: new ObjectId(user.userId) })
+    const userDoc = await usersCollection.findOne({ discordId: user.userId })
 
     if (!userDoc) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    const now = new Date()
-    const lastClaim = userDoc.lastCreditClaim ? new Date(userDoc.lastCreditClaim) : new Date(0)
-    const timeSinceLastClaim = now.getTime() - lastClaim.getTime()
+    const lastCreditClaim = userDoc.lastCreditClaim as Date
+    const now = new Date();
+    let canClaimCredits = false;
+    if (!lastCreditClaim || (now.getTime() - new Date(lastCreditClaim).getTime()) >= 24 * 60 * 60 * 1000) {
+        canClaimCredits = true;
+    }
 
-    if (timeSinceLastClaim < DAILY_CLAIM_INTERVAL) {
-      const hoursUntilNextClaim = Math.ceil((DAILY_CLAIM_INTERVAL - timeSinceLastClaim) / (1000 * 60 * 60))
+    if (!canClaimCredits) {
       return NextResponse.json(
         {
-          error: `Already claimed today. Try again in ${hoursUntilNextClaim} hours`,
-          canClaimAt: new Date(lastClaim.getTime() + DAILY_CLAIM_INTERVAL),
+          error: `Already claimed today. Try again later.`,
+          canClaimAt: new Date(lastCreditClaim.getTime() + DAILY_CLAIM_INTERVAL),
         },
         { status: 400 },
       )
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
 
     // Award credits
     const result = await usersCollection.updateOne(
-      { _id: new ObjectId(user.userId) },
+      { discordId: user.userId },
       {
         $inc: { credits: DAILY_CREDITS },
         $set: { lastCreditClaim: now, updatedAt: now },

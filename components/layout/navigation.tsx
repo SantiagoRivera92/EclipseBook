@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -26,6 +26,17 @@ interface NavigationProps {
 
 export function Navigation({ user }: NavigationProps) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } catch (e) {
+      console.error("Logout failed:", e)
+    } finally {
+      router.push("/")
+    }
+  }
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard" },
@@ -95,7 +106,7 @@ export function Navigation({ user }: NavigationProps) {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive cursor-pointer">
+                <DropdownMenuItem className="text-destructive cursor-pointer" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </DropdownMenuItem>

@@ -1,6 +1,6 @@
 // Authentication utilities with Discord OAuth
 
-import { jwtVerify, SignJWT } from "jose"
+import { JWTPayload, jwtVerify, SignJWT } from "jose"
 import { cookies } from "next/headers"
 
 if (!process.env.NEXTAUTH_SECRET) {
@@ -9,7 +9,7 @@ if (!process.env.NEXTAUTH_SECRET) {
 
 const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
 
-export interface TokenPayload {
+export interface TokenPayload extends JWTPayload {
   userId: string
   discordId: string
   isAdmin?: boolean // Add admin flag to JWT to avoid TOCTOU attacks

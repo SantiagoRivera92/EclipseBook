@@ -20,7 +20,9 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
+  /* red background */
+  --destructive-foreground: oklch(0.98 0 0);
+  /* white text for contrast */
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -42,35 +44,57 @@
 
 .dark {
   /* Dark gaming theme with slate background and amber accents */
-  --background: oklch(0.12 0 0); /* Deep dark slate */
-  --foreground: oklch(0.95 0 0); /* Nearly white text */
-  --card: oklch(0.15 0 0); /* Slightly lighter slate for cards */
+  --background: oklch(0.12 0 0);
+  /* Deep dark slate */
+  --foreground: oklch(0.95 0 0);
+  /* Nearly white text */
+  --card: oklch(0.15 0 0);
+  /* Slightly lighter slate for cards */
   --card-foreground: oklch(0.95 0 0);
   --popover: oklch(0.15 0 0);
   --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.7 0.13 73); /* Amber accent */
-  --primary-foreground: oklch(0.1 0 0); /* Dark text on amber */
-  --secondary: oklch(0.25 0 0); /* Slate grey */
+  --primary: oklch(0.7 0.13 73);
+  /* Amber accent */
+  --primary-foreground: oklch(0.1 0 0);
+  /* Dark text on amber */
+  --secondary: oklch(0.25 0 0);
+  /* Slate grey */
   --secondary-foreground: oklch(0.95 0 0);
-  --muted: oklch(0.3 0 0); /* Medium slate */
-  --muted-foreground: oklch(0.65 0 0); /* Dimmed text */
-  --accent: oklch(0.7 0.13 73); /* Amber for accents */
+  --muted: oklch(0.3 0 0);
+  /* Medium slate */
+  --muted-foreground: oklch(0.65 0 0);
+  /* Dimmed text */
+  --accent: oklch(0.7 0.13 73);
+  /* Amber for accents */
   --accent-foreground: oklch(0.1 0 0);
   --destructive: oklch(0.55 0.2 30);
-  --destructive-foreground: oklch(0.95 0 0);
-  --border: oklch(0.2 0 0); /* Dark borders */
-  --input: oklch(0.18 0 0); /* Slate input fields */
-  --ring: oklch(0.7 0.13 73); /* Amber ring focus */
-  --chart-1: oklch(0.65 0.15 45); /* Warm orange */
-  --chart-2: oklch(0.6 0.12 220); /* Blue */
-  --chart-3: oklch(0.5 0.1 280); /* Purple */
-  --chart-4: oklch(0.65 0.12 150); /* Teal */
-  --chart-5: oklch(0.55 0.15 30); /* Red */
-  --sidebar: oklch(0.14 0 0); /* Slightly lighter for sidebar */
+  /* red background */
+  --destructive-foreground: oklch(0.98 0 0);
+  /* white text for contrast */
+  --border: oklch(0.2 0 0);
+  /* Dark borders */
+  --input: oklch(0.18 0 0);
+  /* Slate input fields */
+  --ring: oklch(0.7 0.13 73);
+  /* Amber ring focus */
+  --chart-1: oklch(0.65 0.15 45);
+  /* Warm orange */
+  --chart-2: oklch(0.6 0.12 220);
+  /* Blue */
+  --chart-3: oklch(0.5 0.1 280);
+  /* Purple */
+  --chart-4: oklch(0.65 0.12 150);
+  /* Teal */
+  --chart-5: oklch(0.55 0.15 30);
+  /* Red */
+  --sidebar: oklch(0.14 0 0);
+  /* Slightly lighter for sidebar */
   --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.7 0.13 73); /* Amber */
+  --sidebar-primary: oklch(0.7 0.13 73);
+  /* Amber */
   --sidebar-primary-foreground: oklch(0.1 0 0);
-  --sidebar-accent: oklch(0.7 0.13 73); /* Amber */
+  --sidebar-accent: oklch(0.7 0.13 73);
+  /* Amber */
   --sidebar-accent-foreground: oklch(0.1 0 0);
   --sidebar-border: oklch(0.2 0 0);
   --sidebar-ring: oklch(0.7 0.13 73);
@@ -121,6 +145,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
     /* Force dark mode for EclipseBook gaming experience */

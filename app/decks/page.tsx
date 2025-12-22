@@ -23,6 +23,7 @@ import { LoadingSpinner } from "@/components/shared/loading-spinner"
 
 interface Deck {
   _id: string
+  deckId: string
   name: string
   mainDeck: number[]
   extraDeck: number[]

@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useEffect, useState, useCallback, useMemo } from "react"
+import { useSearchParams } from "next/navigation"
 import { Navigation } from "@/components/layout/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,10 +16,15 @@ import { arrayMove } from "@dnd-kit/sortable"
 import { cn } from "@/lib/utils"
 
 export default function DeckBuilderPage() {
+  const searchParams = useSearchParams()
+  const deckId = searchParams.get("id")
+  const isEditMode = !!deckId
+
   const [user, setUser] = useState<any>(null)
   const [deckName, setDeckName] = useState("New Deck")
   const [searchQuery, setSearchQuery] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+  const [isLoadingDeck, setIsLoadingDeck] = useState(isEditMode)
   const { toast } = useToast()
   const [filters, setFilters] = useState<FilterState>({
     cardType: null,
@@ -55,6 +61,57 @@ export default function DeckBuilderPage() {
     fetchData()
   }, [])
 
+  useEffect(() => {
+    if (!deckId || !allCards.length) return
+
+    const fetchDeck = async () => {
+      setIsLoadingDeck(true)
+      try {
+        const response = await fetch(`/api/decks/${deckId}`)
+
+        if (!response.ok) {
+          const error = await response.json()
+          toast({
+            variant: "destructive",
+            title: "Failed to load deck",
+            description: error.error || "This deck does not exist or you don't have permission to edit it.",
+          })
+          window.location.href = "/decks"
+          return
+        }
+
+        const deck = await response.json()
+
+        setDeckName(deck.name)
+
+        const cardsMap = new Map(allCards.map((card) => [card.cardCode, card]))
+
+        setMainDeck(deck.mainDeck.map((code: number) => cardsMap.get(code)).filter(Boolean) as Card[])
+        setExtraDeck(deck.extraDeck.map((code: number) => cardsMap.get(code)).filter(Boolean) as Card[])
+        setSideDeck(deck.sideDeck.map((code: number) => cardsMap.get(code)).filter(Boolean) as Card[])
+
+        toast({
+          title: "Deck loaded",
+          description: `Editing "${deck.name}"`,
+        })
+      } catch (error) {
+        console.error("[v0] Failed to fetch deck:", error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load deck. Redirecting...",
+        })
+        setTimeout(() => {
+          window.location.href = "/decks"
+        }, 2000)
+      } finally {
+        setIsLoadingDeck(false)
+      }
+    }
+
+    fetchDeck()
+  }, [deckId, allCards, toast])
+
   const handleSaveDeck = async () => {
     if (mainDeck.length < 40) {
       toast({
@@ -67,8 +124,11 @@ export default function DeckBuilderPage() {
 
     setIsSaving(true)
     try {
-      const response = await fetch("/api/decks", {
-        method: "POST",
+      const method = isEditMode ? "PUT" : "POST"
+      const endpoint = isEditMode ? `/api/decks/${deckId}` : "/api/decks"
+
+      const response = await fetch(endpoint, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: deckName,
@@ -84,8 +144,8 @@ export default function DeckBuilderPage() {
       }
 
       toast({
-        title: "Deck saved!",
-        description: `"${deckName}" has been saved successfully.`,
+        title: isEditMode ? "Deck updated!" : "Deck saved!",
+        description: `"${deckName}" has been ${isEditMode ? "updated" : "saved"} successfully.`,
       })
       window.location.href = "/decks"
     } catch (error) {
@@ -352,7 +412,9 @@ export default function DeckBuilderPage() {
     return counts
   }, [mainDeck, extraDeck, sideDeck])
 
-  if (!user) return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>
+  if (!user || isLoadingDeck) {
+    return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>
+  }
 
   return (
     <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd} collisionDetection={closestCorners}>
@@ -401,7 +463,8 @@ export default function DeckBuilderPage() {
                     onClick={handleSaveDeck}
                     disabled={isSaving || mainDeck.length < 40}
                   >
-                    <Save className="h-4 w-4 mr-2" /> {isSaving ? "Saving..." : "Save Deck"}
+                    <Save className="h-4 w-4 mr-2" />{" "}
+                    {isSaving ? "Saving..." : isEditMode ? "Update Deck" : "Save Deck"}
                   </Button>
                 </div>
               </div>

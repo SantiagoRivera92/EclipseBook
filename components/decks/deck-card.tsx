@@ -9,6 +9,7 @@ import { Edit, Trash2 } from "lucide-react"
 interface DeckCardProps {
   deck: {
     _id: string
+    deckId: string
     name: string
     mainDeck: number[]
     extraDeck: number[]
@@ -51,7 +52,7 @@ export function DeckCard({ deck, onDelete }: DeckCardProps) {
         </div>
       </CardContent>
       <CardFooter className="flex gap-2">
-        <Link href={`/decks/builder/${deck._id}`} className="flex-1">
+        <Link href={`/decks/builder?id=${deck.deckId}`} className="flex-1">
           <Button variant="outline" className="w-full gap-2 bg-transparent">
             <Edit className="h-4 w-4" />
             Edit

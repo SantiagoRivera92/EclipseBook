@@ -66,13 +66,15 @@ export async function GET(request: NextRequest) {
     let user = await usersCollection.findOne({ discordId: discordUser.id })
 
     if (!user) {
-      // New user - give signup credits and set last claim time
       user = {
         _id: discordUser.id,
         discordId: discordUser.id,
         username: discordUser.username,
         avatar: `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`,
         credits: CREDITS_ON_SIGNUP,
+        ladderWins: 0,
+        ladderLosses: 0,
+        ladderWinStreak: 0,
         lastCreditClaim: new Date(),
         isAdmin: false,
         createdAt: new Date(),

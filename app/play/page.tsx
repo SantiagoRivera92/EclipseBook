@@ -13,9 +13,9 @@ export default function PlayPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [stats, setStats] = useState({
-    winStreak: 0,
-    ladderRank: 0,
     totalWins: 0,
+    totalLosses: 0,
+    winStreak: 0,
     eliminationWins: 0,
     tournamentWins: 0,
   })
@@ -24,13 +24,19 @@ export default function PlayPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [userRes, statsRes] = await Promise.all([
-          fetch("/api/user/profile"),
-          fetch("/api/play/stats"),
-        ])
+        const userRes = await fetch("/api/user/profile")
 
-        if (userRes.ok) setUser(await userRes.json())
-        if (statsRes.ok) setStats(await statsRes.json())
+        if (userRes.ok) {
+          const userData = await userRes.json()
+          setUser(userData)
+          setStats({
+            totalWins: userData.ladderWins || 0,
+            totalLosses: userData.ladderLosses || 0,
+            winStreak: userData.ladderWinStreak || 0,
+            eliminationWins: 0, // TODO: Add elimination stats
+            tournamentWins: 0, // TODO: Add tournament stats
+          })
+        }
       } catch (error) {
         console.error("Failed to fetch data:", error)
       } finally {
@@ -50,6 +56,11 @@ export default function PlayPage() {
   }
 
   if (!user) return null
+
+  const winRate =
+    stats.totalWins + stats.totalLosses > 0
+      ? ((stats.totalWins / (stats.totalWins + stats.totalLosses)) * 100).toFixed(1)
+      : "0.0"
 
   return (
     <div className="min-h-screen bg-background">
@@ -73,8 +84,8 @@ export default function PlayPage() {
           <Card>
             <CardContent className="p-4">
               <div className="text-center">
-                <p className="text-sm text-muted-foreground">Ladder Rank</p>
-                <p className="text-3xl font-bold">#{stats.ladderRank || "N/A"}</p>
+                <p className="text-sm text-muted-foreground">Win Rate</p>
+                <p className="text-3xl font-bold">{winRate}%</p>
               </div>
             </CardContent>
           </Card>
